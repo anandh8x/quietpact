@@ -2,6 +2,30 @@ import { address, DomainError, type Address, type InvoiceState } from "@quietpac
 import type { EncryptedInvoiceAction, InvoiceRecords, PublicInvoiceView } from "@quietpact/invoice";
 import { zeroHash, type Hash, type PublicClient, type WalletClient } from "viem";
 
+export const invoiceCreatedEvent = {
+  type: "event",
+  name: "InvoiceCreated",
+  inputs: [
+    { name: "invoiceId", type: "bytes32", indexed: true },
+    { name: "payer", type: "address", indexed: true },
+    { name: "payee", type: "address", indexed: true },
+    { name: "commitment", type: "bytes32", indexed: false },
+    { name: "ciphertextHash", type: "bytes32", indexed: false },
+    { name: "auditorKeyId", type: "bytes32", indexed: false },
+  ],
+  anonymous: false,
+} as const;
+
+export const invoiceStateChangedEvent = {
+  type: "event",
+  name: "InvoiceStateChanged",
+  inputs: [
+    { name: "invoiceId", type: "bytes32", indexed: true },
+    { name: "state", type: "uint8", indexed: false },
+  ],
+  anonymous: false,
+} as const;
+
 export const invoiceRegistryAbi = [
   {
     type: "function",
@@ -46,6 +70,8 @@ export const invoiceRegistryAbi = [
       },
     ],
   },
+  invoiceCreatedEvent,
+  invoiceStateChangedEvent,
 ] as const;
 
 export interface ViemInvoiceRecordsOptions {
@@ -63,6 +89,135 @@ const stateByIndex: Readonly<Record<number, InvoiceState>> = {
   5: "DISPUTED",
   6: "CANCELLED",
 };
+
+export interface PublicInvoiceProjection {
+  readonly id: `0x${string}`;
+  readonly payer: Address;
+  readonly payee: Address;
+  readonly commitment: `0x${string}`;
+  readonly ciphertextHash: `0x${string}`;
+  readonly state: InvoiceState;
+  readonly createdTransactionHash: Hash;
+  readonly latestTransactionHash: Hash;
+  readonly latestBlock: bigint;
+}
+
+export type InvoiceProjectionEvent =
+  | Readonly<{
+      type: "created";
+      invoice: PublicInvoiceProjection;
+      logIndex: number;
+    }>
+  | Readonly<{
+      type: "stateChanged";
+      id: `0x${string}`;
+      state: InvoiceState;
+      transactionHash: Hash;
+      blockNumber: bigint;
+      logIndex: number;
+    }>;
+
+export interface InvoiceProjectionRepository {
+  cursor(): Promise<Readonly<{ blockNumber: bigint; blockHash: Hash }> | null>;
+  apply(batch: {
+    readonly events: readonly InvoiceProjectionEvent[];
+    readonly throughBlock: bigint;
+    readonly throughBlockHash: Hash;
+    readonly reset: boolean;
+  }): Promise<void>;
+  view(id: `0x${string}`): Promise<PublicInvoiceProjection | null>;
+}
+
+export interface InvoiceProjector {
+  sync(): Promise<Readonly<{ fromBlock: bigint | null; throughBlock: bigint; events: number }>>;
+}
+
+export function createViemInvoiceProjector(options: {
+  readonly registry: Address;
+  readonly publicClient: PublicClient;
+  readonly repository: InvoiceProjectionRepository;
+  readonly startBlock?: bigint;
+}): InvoiceProjector {
+  return {
+    async sync() {
+      const throughBlockData = await options.publicClient.getBlock({ blockTag: "latest" });
+      const throughBlock = throughBlockData.number;
+      const cursor = await options.repository.cursor();
+      let reset = false;
+      if (cursor !== null) {
+        try {
+          const cursorBlock = await options.publicClient.getBlock({
+            blockNumber: cursor.blockNumber,
+          });
+          reset = cursorBlock.hash !== cursor.blockHash;
+        } catch {
+          reset = true;
+        }
+      }
+      const fromBlock =
+        cursor === null || reset ? (options.startBlock ?? 0n) : cursor.blockNumber + 1n;
+      if (fromBlock > throughBlock) {
+        return { fromBlock: null, throughBlock, events: 0 };
+      }
+
+      const [createdLogs, stateLogs] = await Promise.all([
+        options.publicClient.getLogs({
+          address: options.registry,
+          event: invoiceCreatedEvent,
+          fromBlock,
+          toBlock: throughBlock,
+        }),
+        options.publicClient.getLogs({
+          address: options.registry,
+          event: invoiceStateChangedEvent,
+          fromBlock,
+          toBlock: throughBlock,
+        }),
+      ]);
+      const events: InvoiceProjectionEvent[] = [
+        ...createdLogs.map((log) => {
+          const location = requireLogLocation(log);
+          const args = requireCreatedArgs(log.args);
+          return {
+            type: "created" as const,
+            invoice: {
+              id: args.invoiceId,
+              payer: address(args.payer),
+              payee: address(args.payee),
+              commitment: args.commitment,
+              ciphertextHash: args.ciphertextHash,
+              state: "REGISTERED" as const,
+              createdTransactionHash: location.transactionHash,
+              latestTransactionHash: location.transactionHash,
+              latestBlock: location.blockNumber,
+            },
+            logIndex: location.logIndex,
+          };
+        }),
+        ...stateLogs.map((log) => {
+          const location = requireLogLocation(log);
+          const args = requireStateChangedArgs(log.args);
+          return {
+            type: "stateChanged" as const,
+            id: args.invoiceId,
+            state: invoiceStateFromIndex(args.state),
+            transactionHash: location.transactionHash,
+            blockNumber: location.blockNumber,
+            logIndex: location.logIndex,
+          };
+        }),
+      ].sort(compareProjectionEvents);
+
+      await options.repository.apply({
+        events,
+        throughBlock,
+        throughBlockHash: throughBlockData.hash,
+        reset,
+      });
+      return { fromBlock, throughBlock, events: events.length };
+    },
+  };
+}
 
 export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): InvoiceRecords {
   const referenceFor =
@@ -178,3 +333,78 @@ export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): In
 }
 
 export type InvoiceRegistryTransactionHash = Hash;
+
+function invoiceStateFromIndex(value: number): InvoiceState {
+  const state = stateByIndex[value];
+  if (state === undefined) throw new Error(`Unknown onchain invoice state ${value}`);
+  return state;
+}
+
+function requireLogLocation(log: {
+  readonly transactionHash: Hash | null;
+  readonly blockNumber: bigint | null;
+  readonly logIndex: number | null;
+}): Readonly<{ transactionHash: Hash; blockNumber: bigint; logIndex: number }> {
+  if (log.transactionHash === null || log.blockNumber === null || log.logIndex === null) {
+    throw new Error("Invoice projector received a pending log");
+  }
+  return {
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    logIndex: log.logIndex,
+  };
+}
+
+function requireCreatedArgs(args: {
+  readonly invoiceId?: Hash | undefined;
+  readonly payer?: `0x${string}` | undefined;
+  readonly payee?: `0x${string}` | undefined;
+  readonly commitment?: Hash | undefined;
+  readonly ciphertextHash?: Hash | undefined;
+}): Readonly<{
+  invoiceId: Hash;
+  payer: `0x${string}`;
+  payee: `0x${string}`;
+  commitment: Hash;
+  ciphertextHash: Hash;
+}> {
+  if (
+    args.invoiceId === undefined ||
+    args.payer === undefined ||
+    args.payee === undefined ||
+    args.commitment === undefined ||
+    args.ciphertextHash === undefined
+  ) {
+    throw new Error("InvoiceCreated log is missing arguments");
+  }
+  return {
+    invoiceId: args.invoiceId,
+    payer: args.payer,
+    payee: args.payee,
+    commitment: args.commitment,
+    ciphertextHash: args.ciphertextHash,
+  };
+}
+
+function requireStateChangedArgs(args: {
+  readonly invoiceId?: Hash | undefined;
+  readonly state?: number | undefined;
+}): Readonly<{ invoiceId: Hash; state: number }> {
+  if (args.invoiceId === undefined || args.state === undefined) {
+    throw new Error("InvoiceStateChanged log is missing arguments");
+  }
+  return { invoiceId: args.invoiceId, state: args.state };
+}
+
+function compareProjectionEvents(
+  left: InvoiceProjectionEvent,
+  right: InvoiceProjectionEvent,
+): number {
+  const leftBlock = left.type === "created" ? left.invoice.latestBlock : left.blockNumber;
+  const rightBlock = right.type === "created" ? right.invoice.latestBlock : right.blockNumber;
+  return leftBlock === rightBlock
+    ? left.logIndex - right.logIndex
+    : leftBlock < rightBlock
+      ? -1
+      : 1;
+}

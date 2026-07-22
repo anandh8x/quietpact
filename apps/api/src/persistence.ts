@@ -4,6 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 
 import { address, type Address } from "@quietpact/domain";
 import type { SealedEnvelope } from "@quietpact/envelope";
+import type {
+  InvoiceProjectionRepository,
+  PublicInvoiceProjection,
+} from "@quietpact/chain-records";
 
 import {
   InvoiceEnvelopeConflictError,
@@ -17,6 +21,7 @@ export interface QuietPactDatabase {
   readonly invoiceEnvelopes: InvoiceEnvelopeRepository;
   readonly encryptionKeys: EncryptionKeyRepository;
   readonly walletAuth: WalletAuthStore;
+  invoiceProjection(scope: string): InvoiceProjectionRepository;
   close(): void;
 }
 
@@ -44,6 +49,36 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
       actor TEXT NOT NULL,
       expires_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS invoice_projection (
+      scope TEXT NOT NULL,
+      id TEXT NOT NULL,
+      payer TEXT NOT NULL,
+      payee TEXT NOT NULL,
+      commitment TEXT NOT NULL,
+      ciphertext_hash TEXT NOT NULL,
+      state TEXT NOT NULL,
+      created_transaction_hash TEXT NOT NULL,
+      latest_transaction_hash TEXT NOT NULL,
+      latest_block TEXT NOT NULL,
+      PRIMARY KEY (scope, id)
+    );
+    CREATE TABLE IF NOT EXISTS projector_cursors (
+      scope TEXT PRIMARY KEY,
+      through_block TEXT NOT NULL,
+      through_hash TEXT NOT NULL
+    );
+  `);
+  const cursorColumns = database.prepare("PRAGMA table_info(projector_cursors)").all();
+  if (!cursorColumns.some((column) => requiredString(column, "name") === "through_hash")) {
+    database.exec(`
+      ALTER TABLE projector_cursors ADD COLUMN through_hash TEXT NOT NULL
+      DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000'
+    `);
+  }
+  database.exec(`
+    UPDATE projector_cursors
+    SET through_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    WHERE through_hash = '0x'
   `);
 
   const putEnvelope = database.prepare(
@@ -78,6 +113,32 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
   const deleteSession = database.prepare("DELETE FROM auth_sessions WHERE token_hash = ?");
   const pruneChallenges = database.prepare("DELETE FROM auth_challenges WHERE expires_at <= ?");
   const pruneSessions = database.prepare("DELETE FROM auth_sessions WHERE expires_at <= ?");
+  const getProjectionCursor = database.prepare(
+    "SELECT through_block, through_hash FROM projector_cursors WHERE scope = ?",
+  );
+  const putProjectionCursor = database.prepare(`
+    INSERT INTO projector_cursors (scope, through_block, through_hash) VALUES (?, ?, ?)
+    ON CONFLICT(scope) DO UPDATE SET
+      through_block = excluded.through_block,
+      through_hash = excluded.through_hash
+  `);
+  const insertProjection = database.prepare(`
+    INSERT OR IGNORE INTO invoice_projection (
+      scope, id, payer, payee, commitment, ciphertext_hash, state,
+      created_transaction_hash, latest_transaction_hash, latest_block
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const updateProjectionState = database.prepare(`
+    UPDATE invoice_projection
+    SET state = ?, latest_transaction_hash = ?, latest_block = ?
+    WHERE scope = ? AND id = ?
+  `);
+  const getProjection = database.prepare(`
+    SELECT id, payer, payee, commitment, ciphertext_hash, state,
+      created_transaction_hash, latest_transaction_hash, latest_block
+    FROM invoice_projection WHERE scope = ? AND id = ?
+  `);
+  const clearProjection = database.prepare("DELETE FROM invoice_projection WHERE scope = ?");
 
   return {
     invoiceEnvelopes: {
@@ -147,10 +208,124 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
         pruneSessions.run(timestamp);
       },
     },
+    invoiceProjection(scope) {
+      return {
+        cursor() {
+          const row = getProjectionCursor.get(scope);
+          return Promise.resolve(
+            row === undefined
+              ? null
+              : {
+                  blockNumber: BigInt(requiredString(row, "through_block")),
+                  blockHash: requiredHex(row, "through_hash"),
+                },
+          );
+        },
+        apply(batch) {
+          database.exec("BEGIN IMMEDIATE");
+          try {
+            if (batch.reset) clearProjection.run(scope);
+            for (const event of batch.events) {
+              if (event.type === "created") {
+                const invoice = event.invoice;
+                const result = insertProjection.run(
+                  scope,
+                  invoice.id,
+                  invoice.payer,
+                  invoice.payee,
+                  invoice.commitment,
+                  invoice.ciphertextHash,
+                  invoice.state,
+                  invoice.createdTransactionHash,
+                  invoice.latestTransactionHash,
+                  invoice.latestBlock.toString(),
+                );
+                if (result.changes === 0) {
+                  const existing = getProjection.get(scope, invoice.id);
+                  if (existing === undefined || !sameCreatedProjection(existing, invoice)) {
+                    throw new Error("Conflicting InvoiceCreated event in projection");
+                  }
+                }
+              } else {
+                const result = updateProjectionState.run(
+                  event.state,
+                  event.transactionHash,
+                  event.blockNumber.toString(),
+                  scope,
+                  event.id,
+                );
+                if (result.changes === 0) {
+                  throw new Error("Invoice state event has no projected invoice");
+                }
+              }
+            }
+            putProjectionCursor.run(scope, batch.throughBlock.toString(), batch.throughBlockHash);
+            database.exec("COMMIT");
+            return Promise.resolve();
+          } catch (error) {
+            database.exec("ROLLBACK");
+            return Promise.reject(
+              error instanceof Error
+                ? error
+                : new Error("Invoice projection batch failed", { cause: error }),
+            );
+          }
+        },
+        view(id) {
+          const row = getProjection.get(scope, id);
+          return Promise.resolve(row === undefined ? null : parseProjection(row));
+        },
+      };
+    },
     close() {
       database.close();
     },
   };
+}
+
+function parseProjection(row: object): PublicInvoiceProjection {
+  return {
+    id: requiredHex(row, "id"),
+    payer: parseStoredAddress(row, "payer"),
+    payee: parseStoredAddress(row, "payee"),
+    commitment: requiredHex(row, "commitment"),
+    ciphertextHash: requiredHex(row, "ciphertext_hash"),
+    state: requiredInvoiceState(row, "state"),
+    createdTransactionHash: requiredHex(row, "created_transaction_hash"),
+    latestTransactionHash: requiredHex(row, "latest_transaction_hash"),
+    latestBlock: BigInt(requiredString(row, "latest_block")),
+  };
+}
+
+function sameCreatedProjection(row: object, invoice: PublicInvoiceProjection): boolean {
+  return (
+    requiredString(row, "payer") === invoice.payer &&
+    requiredString(row, "payee") === invoice.payee &&
+    requiredString(row, "commitment") === invoice.commitment &&
+    requiredString(row, "ciphertext_hash") === invoice.ciphertextHash &&
+    requiredString(row, "created_transaction_hash") === invoice.createdTransactionHash
+  );
+}
+
+function requiredHex(row: object, key: string): `0x${string}` {
+  const value = requiredString(row, key);
+  if (!/^0x[0-9a-f]+$/i.test(value)) throw new Error(`Database column ${key} is invalid`);
+  return value as `0x${string}`;
+}
+
+function requiredInvoiceState(row: object, key: string): PublicInvoiceProjection["state"] {
+  const value = requiredString(row, key);
+  if (
+    value !== "REGISTERED" &&
+    value !== "APPROVED" &&
+    value !== "PAYMENT_REFERENCED" &&
+    value !== "COMPLETE" &&
+    value !== "DISPUTED" &&
+    value !== "CANCELLED"
+  ) {
+    throw new Error(`Database column ${key} is invalid`);
+  }
+  return value;
 }
 
 function parseEnvelope(value: string): SealedEnvelope {

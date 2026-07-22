@@ -1,6 +1,11 @@
 import { address, type Address } from "@quietpact/domain";
 import type { RecipientKey, SealedEnvelope } from "@quietpact/envelope";
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import type { InvoiceProjectionRepository } from "@quietpact/chain-records";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from "fastify";
 import { isHex } from "viem";
 
 import { WalletAuthError, type WalletAuth } from "./wallet-auth.js";
@@ -28,10 +33,12 @@ export interface AppOptions {
   readonly invoiceEnvelopes?: InvoiceEnvelopeRepository;
   readonly encryptionKeys?: EncryptionKeyRepository;
   readonly walletAuth?: WalletAuth;
+  readonly invoiceProjection?: InvoiceProjectionRepository;
+  readonly logger?: FastifyServerOptions["logger"];
 }
 
 export function createApp(options: AppOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: options.logger ?? true });
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof WalletAuthError) {
@@ -63,6 +70,18 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
       if (input === null) return reply.code(400).send({ code: "INVALID_SESSION_REQUEST" });
       const session = await walletAuth.createSession(input);
       return reply.code(201).send({ session });
+    });
+  }
+
+  if (options.invoiceProjection !== undefined) {
+    const projection = options.invoiceProjection;
+    app.get<{ Params: { id: string } }>("/v1/invoice-records/:id", async (request, reply) => {
+      const id = parseHex32(request.params.id);
+      if (id === null) return reply.code(400).send({ code: "INVALID_INVOICE_ID" });
+      const invoice = await projection.view(id);
+      return invoice === null
+        ? reply.code(404).send({ code: "NOT_FOUND" })
+        : { invoice: { ...invoice, latestBlock: invoice.latestBlock.toString() } };
     });
   }
 
@@ -238,4 +257,8 @@ function parseSessionBody(body: unknown): {
   }
   const actor = parseAddress(body.address);
   return actor === null ? null : { actor, nonce: body.nonce, signature: body.signature };
+}
+
+function parseHex32(value: string): `0x${string}` | null {
+  return /^0x[0-9a-fA-F]{64}$/.test(value) ? (value.toLowerCase() as `0x${string}`) : null;
 }

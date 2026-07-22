@@ -76,6 +76,18 @@ importers:
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
 
+  packages/chain-records:
+    dependencies:
+      "@quietpact/domain":
+        specifier: workspace:*
+        version: link:../domain
+      "@quietpact/invoice":
+        specifier: workspace:*
+        version: link:../invoice
+      viem:
+        specifier: ^2.0.0
+        version: 2.55.4(typescript@5.9.3)
+
   packages/domain: {}
 
   packages/envelope:

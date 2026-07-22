@@ -13,7 +13,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --exclude packages/chain-records/test/*.integration.test.ts",
+    "test:chain": "vitest run packages/chain-records/test/invoice-registry.integration.test.ts",
     "contracts:test": "forge test --root contracts",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

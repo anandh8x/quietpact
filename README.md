@@ -16,9 +16,9 @@ QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted inv
 
 ## Current status
 
-Phases 0–3 are complete: the workspace, workflow state machines, Solidity contracts, and authenticated multi-recipient envelope encryption are implemented and tested. Phase 4 is in progress. Its first local checkpoint can encrypt an invoice in the browser, store only its opaque envelope through the local API, and reopen it for an authorized payer.
+Phases 0–3 are complete: the workspace, workflow state machines, Solidity contracts, and authenticated multi-recipient envelope encryption are implemented and tested. Phase 4 is in progress. Its local checkpoint can encrypt an invoice in the browser, store only its opaque envelope through the local API, and reopen it for an authorized payer.
 
-This checkpoint is local development, not an Arc testnet deployment. Its chain-record adapter is still in memory while the Anvil adapter is built next.
+The Viem chain-record adapter now registers, reads, and approves invoice records through the Solidity `InvoiceRegistry`, with an end-to-end integration test that deploys the contract to Anvil and submits real local transactions. The browser demo still uses the in-memory adapter until wallet connection is added. This checkpoint is local development, not an Arc testnet deployment.
 
 Local prototype · unaudited · no real funds.
 
@@ -36,6 +36,7 @@ Install and verify:
 pnpm install
 pnpm verify
 pnpm contracts:test
+pnpm test:chain
 ```
 
 Run the web app and API:

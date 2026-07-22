@@ -16,9 +16,11 @@ QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted inv
 
 ## Current status
 
-QuietPact is in early development. The current repository contains the workspace foundation; product workflows and contracts are being built incrementally and test-first.
+Phases 0–3 are complete: the workspace, workflow state machines, Solidity contracts, and authenticated multi-recipient envelope encryption are implemented and tested. Phase 4 is in progress. Its first local checkpoint can encrypt an invoice in the browser, store only its opaque envelope through the local API, and reopen it for an authorized payer.
 
-Arc public testnet only · unaudited · no real funds.
+This checkpoint is local development, not an Arc testnet deployment. Its chain-record adapter is still in memory while the Anvil adapter is built next.
+
+Local prototype · unaudited · no real funds.
 
 ## Development
 
@@ -42,7 +44,7 @@ Run the web app and API:
 pnpm dev
 ```
 
-The web app runs at `http://localhost:5173`; the API health endpoint runs at `http://localhost:3001/health`.
+The web app runs at `http://localhost:5173`; the API health endpoint runs at `http://localhost:3001/health`. The website includes the local encrypted-invoice checkpoint. Development identities are intentionally temporary and are not wallet authentication.
 
 ## Privacy boundary
 

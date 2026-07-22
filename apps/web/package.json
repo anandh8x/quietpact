@@ -9,6 +9,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@quietpact/domain": "workspace:*",
+    "@quietpact/envelope": "workspace:*",
+    "@quietpact/invoice": "workspace:*",
     "@vitejs/plugin-react": "^4.0.0",
     "vite": "^7.0.0",
     "react": "^19.0.0",

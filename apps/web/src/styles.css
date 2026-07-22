@@ -16,6 +16,7 @@ body {
 
 main {
   display: grid;
+  gap: 3rem;
   min-height: 100vh;
   padding: 2rem clamp(1.25rem, 5vw, 5rem);
   background: radial-gradient(circle at 75% 20%, rgb(129 169 116 / 20%), transparent 35%), #10110f;
@@ -34,6 +35,99 @@ main {
 .hero {
   width: min(760px, 100%);
   align-self: center;
+}
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1.2fr);
+  gap: clamp(2rem, 6vw, 6rem);
+  width: min(1100px, 100%);
+  margin-inline: auto;
+  border: 1px solid #343831;
+  border-radius: 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  background: rgb(24 27 23 / 78%);
+}
+
+h2 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.demo-copy {
+  max-width: 38ch;
+  color: #aeb1a8;
+  line-height: 1.6;
+}
+
+form {
+  display: grid;
+  gap: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.5rem;
+  color: #b8c8b2;
+  font-size: 0.85rem;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #465141;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  color: #f4f2ea;
+  background: #10110f;
+  font: inherit;
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.9rem 1.2rem;
+  color: #10110f;
+  background: #b9daa9;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.result {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-left: 3px solid #9fc78f;
+  padding: 1rem 1.25rem;
+  color: #dfe9d9;
+  background: #192018;
+}
+
+.result code {
+  overflow: hidden;
+  color: #8e9a89;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+}
+
+.result.error {
+  border-color: #c87970;
+  color: #f0c1bc;
 }
 
 .eyebrow {
@@ -95,6 +189,10 @@ footer {
 }
 
 @media (max-width: 600px) {
+  .demo {
+    grid-template-columns: 1fr;
+  }
+
   .notice {
     flex-direction: column;
   }

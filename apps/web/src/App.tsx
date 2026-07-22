@@ -503,291 +503,690 @@ export function App() {
   const phase = auctionSnapshot?.view.phase;
 
   return (
-    <main>
-      <div className="topline">
-        <div className="status">Arc-ready prototype · Local development</div>
-        <button className="wallet" disabled={busy} type="button" onClick={() => void connect()}>
-          {actor === null ? "Connect wallet" : shortAddress(actor)}
-        </button>
-      </div>
-      <section className="hero">
-        <p className="eyebrow">QuietPact</p>
-        <h1>Private commercial workflows, ready for Arc.</h1>
-        <p className="lede">
-          Encrypt invoice bodies and commit sealed procurement bids locally, while keeping every
-          public onchain action precisely labelled.
-        </p>
-      </section>
-
-      <section className="demo" aria-labelledby="invoice-title">
-        <div>
-          <p className="eyebrow">Encrypted invoices</p>
-          <h2 id="invoice-title">Encrypt, register, and approve</h2>
-          <p className="demo-copy">
-            Connect the future payer once to publish their encryption key. Then connect the payee to
-            create the invoice and sign its public commitment transaction.
-          </p>
-        </div>
-        <form onSubmit={(event) => void createInvoice(event)}>
-          <label>
-            Payer wallet
-            <input
-              required
-              placeholder="0x…"
-              value={payerInput}
-              onChange={(event) => setPayerInput(event.target.value)}
-            />
-          </label>
-          <label>
-            Amount
-            <input
-              required
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-            />
-          </label>
-          <label>
-            Private memo
-            <textarea required value={memo} onChange={(event) => setMemo(event.target.value)} />
-          </label>
-          <button disabled={busy} type="submit">
-            {busy ? "Waiting…" : "Encrypt and register"}
+    <>
+      <a className="skip-link" href="#main-content">
+        Skip to workspace
+      </a>
+      <header className="site-header">
+        <a className="wordmark" href="#top" aria-label="QuietPact home">
+          QuietPact
+        </a>
+        <nav aria-label="Primary navigation">
+          <a href="#purpose">Why QuietPact</a>
+          <a href="#workflows">Workflows</a>
+          <a href="#privacy-boundary">Privacy boundary</a>
+          <a href="#local-prototype">Local prototype</a>
+        </nav>
+        <div className="wallet-cluster">
+          <span
+            className={`network-dot ${actor === null ? "offline" : "online"}`}
+            aria-hidden="true"
+          />
+          <span className="network-label">
+            {actor === null ? "Disconnected" : "Local Anvil · 31337"}
+          </span>
+          <button className="wallet" disabled={busy} type="button" onClick={() => void connect()}>
+            {actor === null ? "Connect wallet" : shortAddress(actor)}
           </button>
-        </form>
-
-        <div className="invoice-actions">
-          <label>
-            Invoice ID
-            <input
-              placeholder="0x…"
-              value={invoiceInput}
-              onChange={(event) => setInvoiceInput(event.target.value)}
-            />
-          </label>
-          <div className="action-row">
-            <button disabled={busy} type="button" onClick={() => void openInvoice(false)}>
-              Open invoice
-            </button>
-            <button disabled={busy} type="button" onClick={() => void openInvoice(true)}>
-              Approve as payer
-            </button>
-          </div>
         </div>
+      </header>
 
-        <div className="payment-panel">
-          <div>
-            <p className="eyebrow">Phase 6 · Payment adapters</p>
-            <h3>Simulate, or send publicly</h3>
-            <p className="demo-copy">
-              This local ETH amount is entered separately and is never compared with the encrypted
-              invoice amount. Simulation cannot update invoice accounting.
+      <main id="main-content">
+        <section className="hero" id="top" aria-labelledby="hero-title">
+          <div className="hero-copy">
+            <p className="eyebrow">Arc-ready · local prototype</p>
+            <h1 id="hero-title">Commercial privacy, without the theatre.</h1>
+            <p className="lede">
+              Encrypted invoices. Sealed bids. Public payments labelled exactly as they are.
+            </p>
+            <div className="hero-actions">
+              <a className="button-link primary" href="#workflows">
+                Open local workspace <span aria-hidden="true">→</span>
+              </a>
+              <a className="button-link secondary" href="#privacy-boundary">
+                See the privacy boundary <span aria-hidden="true">→</span>
+              </a>
+            </div>
+            <div className="chain-marker" aria-label="Local Anvil network, chain ID 31337">
+              <span>Local Anvil / Chain ID</span>
+              <strong>31337</strong>
+            </div>
+          </div>
+
+          <div className="hero-ledger" aria-label="QuietPact workflow classifications">
+            <HeroLedgerRow
+              number="01"
+              title="Encrypted invoice"
+              status="ENCRYPTED OFFCHAIN"
+              detail="Bodies stay with authorized recipients"
+              tone="private"
+            />
+            <HeroLedgerRow
+              number="02"
+              title="Sealed bid"
+              status="HIDDEN UNTIL REVEAL"
+              detail="Commitment public, opening encrypted"
+              tone="private"
+            />
+            <HeroLedgerRow
+              number="03"
+              title="Public payment"
+              status="PUBLIC ONCHAIN"
+              detail="Amount, sender, and recipient inspectable"
+              tone="public"
+            />
+            <div className="ledger-foot">
+              <span>● {actor === null ? "Wallet not connected" : "Connected to local chain"}</span>
+              <span>Local Anvil · Chain 31337</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="purpose-section" id="purpose" aria-labelledby="purpose-title">
+          <div className="problem-copy">
+            <p className="eyebrow">The problem</p>
+            <h2 id="purpose-title">Public ledgers make poor filing cabinets.</h2>
+            <p>
+              Blockchains make coordination verifiable by making data widely inspectable. For
+              commercial workflows, publishing everything can expose prices, terms, relationships,
+              and bidding strategy.
+            </p>
+            <p>
+              Moving every record into a private database restores confidentiality, but asks every
+              participant to trust one operator and its version of history.
             </p>
           </div>
-          <label>
-            Transfer amount (local ETH)
-            <input
-              required
-              inputMode="decimal"
-              value={paymentAmount}
-              onChange={(event) => setPaymentAmount(event.target.value)}
-            />
-          </label>
-          <button
-            disabled={busy || actor === null}
-            type="button"
-            onClick={() => void simulateInvoicePayment()}
-          >
-            Simulate only
-          </button>
-          <label className="acknowledgement">
-            <input
-              type="checkbox"
-              checked={publicPaymentAccepted}
-              onChange={(event) => setPublicPaymentAccepted(event.target.checked)}
-            />
-            <span>{PUBLIC_PAYMENT_ACKNOWLEDGEMENT}</span>
-          </label>
-          <button
-            className="public-payment-button"
-            disabled={busy || actor === null || !publicPaymentAccepted}
-            type="button"
-            onClick={() => void sendPublicInvoicePayment()}
-          >
-            Send public local-chain payment
-          </button>
-        </div>
 
-        {paymentResult ? (
-          <div
-            className={`payment-result ${paymentResult.kind === "SIMULATION" ? "simulation" : "public"}`}
-            aria-live="polite"
-          >
-            <strong>{paymentResult.label}</strong>
-            <span>{formatEther(paymentResult.amount)} local ETH</span>
-            <span>{paymentResult.classification}</span>
-            <code>{paymentResult.reference}</code>
+          <ol className="problem-ledger" aria-label="Problems QuietPact addresses">
+            <li>
+              <span>01</span>
+              <div>
+                <h3>Commercial data leaks</h3>
+                <p>
+                  Publishing invoices or bids directly can expose pricing, terms, counterparties,
+                  and strategy.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span>02</span>
+              <div>
+                <h3>Private systems demand trust</h3>
+                <p>
+                  Keeping every record in one database asks all parties to trust its operator and
+                  history.
+                </p>
+              </div>
+            </li>
+            <li className="public-problem">
+              <span>03</span>
+              <div>
+                <h3>Privacy claims blur public facts</h3>
+                <p>
+                  Wallets, timing, transfers, and revealed bids can remain visible even when an
+                  interface feels private.
+                </p>
+              </div>
+            </li>
+          </ol>
+
+          <div className="purpose-panel">
+            <div className="purpose-statement">
+              <p className="eyebrow">QuietPact&apos;s purpose</p>
+              <h3>Separate private content from public coordination.</h3>
+            </div>
+            <article className="purpose-proof">
+              <span aria-hidden="true">⌑</span>
+              <h4>Encrypted invoice bodies</h4>
+              <p>
+                Named recipients can open the details while a public commitment anchors integrity.
+              </p>
+            </article>
+            <article className="purpose-proof">
+              <span aria-hidden="true">◉</span>
+              <h4>Sealed bids until reveal</h4>
+              <p>Bid openings stay encrypted while commitments and deadlines remain shared.</p>
+            </article>
+            <article className="purpose-proof public-proof">
+              <span aria-hidden="true">◎</span>
+              <h4>Honest public state</h4>
+              <p>Workflow changes and current payments stay inspectable and are labelled public.</p>
+            </article>
           </div>
-        ) : null}
+        </section>
 
-        {result ? (
-          <div className="result" aria-live="polite">
-            <strong>{result.state}</strong>
-            <span>{result.detail}</span>
-            <code>{result.id}</code>
-            <code>{result.commitment}</code>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="demo auction-demo" aria-labelledby="auction-title">
-        <div>
-          <p className="eyebrow">Phase 5 · Sealed-bid procurement</p>
-          <h2 id="auction-title">Commit hidden. Reveal public.</h2>
-          <p className="demo-copy">
-            Bid amounts stay hidden while commitments are open. During reveal, amount and bidder
-            become public onchain. Missing the reveal deadline forfeits the fixed bond.
+        <section className="workspace-intro" id="workflows" aria-labelledby="workspace-title">
+          <p className="eyebrow">Working local prototype</p>
+          <h2 id="workspace-title">Two workflows. One honest boundary.</h2>
+          <p>
+            Every control below talks to the local contracts and API. Connect an injected wallet on
+            Anvil before starting.
           </p>
-        </div>
+        </section>
 
-        <form onSubmit={(event) => void createAuction(event)}>
-          <div className="field-grid">
-            <label>
-              Opens after (seconds)
-              <input
-                required
-                inputMode="numeric"
-                value={commitDelay}
-                onChange={(event) => setCommitDelay(event.target.value)}
-              />
-            </label>
-            <label>
-              Commit window (seconds)
-              <input
-                required
-                inputMode="numeric"
-                value={commitSeconds}
-                onChange={(event) => setCommitSeconds(event.target.value)}
-              />
-            </label>
-            <label>
-              Reveal window (seconds)
-              <input
-                required
-                inputMode="numeric"
-                value={revealSeconds}
-                onChange={(event) => setRevealSeconds(event.target.value)}
-              />
-            </label>
-            <label>
-              Fixed bond (local ETH)
-              <input
-                required
-                inputMode="decimal"
-                value={bondEth}
-                onChange={(event) => setBondEth(event.target.value)}
-              />
-            </label>
+        <section className="workflow-section invoice-section" aria-labelledby="invoice-title">
+          <div className="section-intro">
+            <span className="section-number">01</span>
+            <p className="eyebrow">Encrypted invoice</p>
+            <h2 id="invoice-title">Private in the record. Public in the state.</h2>
+            <p>
+              The invoice body is encrypted in your browser. The contract receives parties,
+              commitment, ciphertext hash, and public workflow state. It never stores the private
+              memo or amount.
+            </p>
+            <div className="fact-line">
+              <span className="fact-icon" aria-hidden="true">
+                ⌑
+              </span>
+              <span>
+                <strong>Recipients only.</strong>
+                <br />
+                Public chain activity remains inspectable.
+              </span>
+            </div>
           </div>
-          <button disabled={busy || actor === null} type="submit">
-            Create auction
-          </button>
-        </form>
 
-        <div className="auction-workspace">
-          <label>
-            Auction ID
-            <input
-              placeholder="0x…"
-              value={auctionInput}
-              onChange={(event) => setAuctionInput(event.target.value)}
+          <div className="product-console invoice-console">
+            <ol className="step-rail" aria-label="Invoice workflow steps">
+              {["Connect", "Encrypt", "Register", "Approve", "Reference"].map((step, index) => (
+                <li className={index === 0 && actor !== null ? "active" : ""} key={step}>
+                  <span>{index + 1}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+
+            <div className="console-heading">
+              <div>
+                <h3>
+                  Invoice details <span>(private)</span>
+                </h3>
+                <p>Encrypted offchain before any contract write.</p>
+              </div>
+              <span className="classification private">Encrypted offchain</span>
+            </div>
+
+            <form className="invoice-create-form" onSubmit={(event) => void createInvoice(event)}>
+              <label className="wide-field">
+                Payer wallet
+                <input
+                  required
+                  autoComplete="off"
+                  placeholder="0x…"
+                  value={payerInput}
+                  onChange={(event) => setPayerInput(event.target.value)}
+                />
+              </label>
+              <label>
+                Amount <span className="field-note">encrypted</span>
+                <input
+                  required
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                />
+              </label>
+              <label className="wide-field">
+                Private memo
+                <textarea required value={memo} onChange={(event) => setMemo(event.target.value)} />
+              </label>
+              <button className="primary-action" disabled={busy || actor === null} type="submit">
+                {busy ? "Action pending…" : "Encrypt and register"}
+              </button>
+            </form>
+
+            <div className="record-actions">
+              <label>
+                Invoice ID
+                <input
+                  autoComplete="off"
+                  placeholder="0x…"
+                  value={invoiceInput}
+                  onChange={(event) => setInvoiceInput(event.target.value)}
+                />
+              </label>
+              <button
+                disabled={busy || actor === null}
+                type="button"
+                onClick={() => void openInvoice(false)}
+              >
+                Open invoice
+              </button>
+              <button
+                disabled={busy || actor === null}
+                type="button"
+                onClick={() => void openInvoice(true)}
+              >
+                Approve as payer
+              </button>
+            </div>
+
+            <div className="payment-adapter">
+              <div className="adapter-heading">
+                <div>
+                  <p className="eyebrow">Payment adapters</p>
+                  <h3>Simulate, or send publicly</h3>
+                </div>
+                <p>Entered separately. Never reconciled against the encrypted invoice amount.</p>
+              </div>
+              <div className="payment-options">
+                <div className="payment-option simulation-option">
+                  <div className="option-title">
+                    <strong>Simulation</strong>
+                    <span>Not broadcast</span>
+                  </div>
+                  <p>Preview the path without a transfer, gas, or invoice state change.</p>
+                  <button
+                    disabled={busy || actor === null}
+                    type="button"
+                    onClick={() => void simulateInvoicePayment()}
+                  >
+                    Simulate payment
+                  </button>
+                </div>
+                <div className="payment-option public-option">
+                  <div className="option-title">
+                    <strong>Public onchain</strong>
+                    <span>Requires action</span>
+                  </div>
+                  <p className="public-warning">
+                    This transfer is visible onchain. Only its confirmed hash is attached.
+                  </p>
+                  <label>
+                    Amount to send <span className="field-note">local ETH</span>
+                    <input
+                      required
+                      inputMode="decimal"
+                      value={paymentAmount}
+                      onChange={(event) => setPaymentAmount(event.target.value)}
+                    />
+                  </label>
+                  <label className="acknowledgement">
+                    <input
+                      type="checkbox"
+                      checked={publicPaymentAccepted}
+                      onChange={(event) => setPublicPaymentAccepted(event.target.checked)}
+                    />
+                    <span>{PUBLIC_PAYMENT_ACKNOWLEDGEMENT}</span>
+                  </label>
+                  <button
+                    className="public-payment-button"
+                    disabled={busy || actor === null || !publicPaymentAccepted}
+                    type="button"
+                    onClick={() => void sendPublicInvoicePayment()}
+                  >
+                    Send public payment
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {paymentResult ? (
+              <div
+                className={`payment-result ${paymentResult.kind === "SIMULATION" ? "simulation" : "public"}`}
+                aria-live="polite"
+              >
+                <strong>{paymentResult.label}</strong>
+                <span>{formatEther(paymentResult.amount)} local ETH</span>
+                <span>{paymentResult.classification}</span>
+                <code>{paymentResult.reference}</code>
+              </div>
+            ) : null}
+
+            {result ? (
+              <div className="result record-result" aria-live="polite">
+                <span className="result-check" aria-hidden="true">
+                  ✓
+                </span>
+                <strong>{result.state}</strong>
+                <span>{result.detail}</span>
+                <code>{result.id}</code>
+                <code>{result.commitment}</code>
+              </div>
+            ) : (
+              <div className="empty-state">
+                No invoice loaded yet. Create one or paste an invoice ID.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="workflow-section auction-section" aria-labelledby="auction-title">
+          <div className="product-console auction-console">
+            <div className="auction-console-title">
+              <div>
+                <p className="eyebrow">Sealed-bid auction</p>
+                <h3>Local procurement console</h3>
+              </div>
+              <button
+                disabled={busy || actor === null}
+                type="button"
+                onClick={() => void viewAuction()}
+              >
+                Refresh auction
+              </button>
+            </div>
+            <ol className="phase-rail" aria-label="Auction phases">
+              {["SCHEDULED", "COMMIT_OPEN", "REVEAL_OPEN", "FINALIZED"].map((item) => (
+                <li className={phase === item ? "active" : ""} key={item}>
+                  <span aria-hidden="true">{phase === item ? "●" : "○"}</span>
+                  {item.replace("_", " ")}
+                </li>
+              ))}
+            </ol>
+
+            <form className="auction-create-form" onSubmit={(event) => void createAuction(event)}>
+              <div className="console-subpanel">
+                <p className="panel-label">Auction timing</p>
+                <div className="field-grid">
+                  <label>
+                    Opens after (seconds)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={commitDelay}
+                      onChange={(event) => setCommitDelay(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Commit window (seconds)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={commitSeconds}
+                      onChange={(event) => setCommitSeconds(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Reveal window (seconds)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={revealSeconds}
+                      onChange={(event) => setRevealSeconds(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Fixed bond (local ETH)
+                    <input
+                      required
+                      inputMode="decimal"
+                      value={bondEth}
+                      onChange={(event) => setBondEth(event.target.value)}
+                    />
+                  </label>
+                </div>
+                <button className="dark-primary" disabled={busy || actor === null} type="submit">
+                  Create auction
+                </button>
+              </div>
+            </form>
+
+            <div className="auction-workspace console-subpanel">
+              <p className="panel-label">Bid actions</p>
+              <label className="auction-id-field">
+                Auction ID
+                <input
+                  autoComplete="off"
+                  placeholder="0x…"
+                  value={auctionInput}
+                  onChange={(event) => setAuctionInput(event.target.value)}
+                />
+              </label>
+              <label>
+                Bid amount
+                <input
+                  inputMode="numeric"
+                  value={bidAmount}
+                  onChange={(event) => setBidAmount(event.target.value)}
+                />
+              </label>
+              <button
+                className="dark-primary"
+                disabled={busy || phase !== "COMMIT_OPEN"}
+                type="button"
+                onClick={() => void commitBid()}
+              >
+                Commit bid + bond
+              </button>
+              <button
+                disabled={busy || encryptedBackup === null}
+                type="button"
+                onClick={exportBackup}
+              >
+                Export encrypted opening
+              </button>
+              <label className="file-button">
+                Import encrypted opening
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={(event) => void importBackup(event)}
+                />
+              </label>
+              <button
+                disabled={busy || encryptedBackup === null || secretBackup !== null}
+                type="button"
+                onClick={() => void unlockBackup()}
+              >
+                Unlock saved opening
+              </button>
+              <button
+                disabled={busy || phase !== "REVEAL_OPEN" || secretBackup === null}
+                type="button"
+                onClick={() => void revealBid()}
+              >
+                Reveal saved bid
+              </button>
+              <button
+                disabled={busy || phase !== "FINALIZABLE"}
+                type="button"
+                onClick={() => void finalizeAuction()}
+              >
+                Finalize auction
+              </button>
+              <button
+                disabled={busy || (auctionSnapshot?.credit ?? 0n) === 0n}
+                type="button"
+                onClick={() => void withdrawCredit()}
+              >
+                Withdraw bond credit
+              </button>
+            </div>
+
+            {auctionSnapshot ? (
+              <AuctionStatus snapshot={auctionSnapshot} />
+            ) : (
+              <div className="empty-state dark-empty">
+                Paste an auction ID and refresh to load its public state.
+              </div>
+            )}
+            {auctionMessage ? (
+              <p className="result success" aria-live="polite">
+                {auctionMessage}
+              </p>
+            ) : null}
+            <p className="forfeit-warning">
+              △ Missing the reveal deadline forfeits the fixed bond.
+            </p>
+          </div>
+
+          <div className="section-intro auction-intro">
+            <span className="section-number">02</span>
+            <p className="eyebrow">Sealed-bid procurement</p>
+            <h2 id="auction-title">Hidden until reveal. Accountable after.</h2>
+            <p>
+              Commit the bid and fixed bond while the window is open. The amount stays hidden until
+              its owner reveals; after that, the bid and winner are public.
+            </p>
+            <ul className="feature-list">
+              <li>
+                <span>⌑</span>
+                <div>
+                  <strong>Encrypted opening</strong>
+                  <p>Amount and salt stay encrypted in browser storage and exported backups.</p>
+                </div>
+              </li>
+              <li>
+                <span>◉</span>
+                <div>
+                  <strong>Time-bound reveal</strong>
+                  <p>The contract, not the interface, enforces every deadline.</p>
+                </div>
+              </li>
+              <li>
+                <span>✓</span>
+                <div>
+                  <strong>Deterministic outcome</strong>
+                  <p>Lowest valid bid wins; address order breaks exact ties.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="privacy-boundary" id="privacy-boundary" aria-labelledby="privacy-title">
+          <p className="eyebrow">Closing / privacy boundary</p>
+          <h2 id="privacy-title">
+            Know what stays <em>private</em>. Know what goes public.
+          </h2>
+          <div className="boundary-grid">
+            <BoundaryItem
+              number="01"
+              title="Encrypted offchain"
+              subtitle="invoice bodies"
+              detail="Bodies are encrypted locally for named recipients; commitments and workflow state are public."
+              boundaryLabel="PRIVATE CONTENT"
+              tone="private"
             />
-          </label>
-          <button
-            disabled={busy || actor === null}
-            type="button"
-            onClick={() => void viewAuction()}
-          >
-            Refresh auction
-          </button>
-          <label>
-            Bid amount
-            <input
-              inputMode="numeric"
-              value={bidAmount}
-              onChange={(event) => setBidAmount(event.target.value)}
+            <BoundaryItem
+              number="02"
+              title="Hidden until reveal"
+              subtitle="sealed bids"
+              detail="Commitments hide bid openings until each bidder reveals during the public window."
+              boundaryLabel="PRIVATE UNTIL REVEAL"
+              tone="private"
             />
-          </label>
-          <button
-            disabled={busy || phase !== "COMMIT_OPEN"}
-            type="button"
-            onClick={() => void commitBid()}
-          >
-            Commit bid + bond
-          </button>
-          <button disabled={busy || encryptedBackup === null} type="button" onClick={exportBackup}>
-            Export opening backup
-          </button>
-          <label className="file-button">
-            Import opening backup
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => void importBackup(event)}
+            <BoundaryItem
+              number="03"
+              title="Public onchain"
+              subtitle="transfers and revealed bids"
+              detail="Transfers, wallet addresses, contract calls, and revealed bids are inspectable by anyone."
+              boundaryLabel="PUBLIC"
+              tone="public"
             />
-          </label>
-          <button
-            disabled={busy || encryptedBackup === null || secretBackup !== null}
-            type="button"
-            onClick={() => void unlockBackup()}
-          >
-            Unlock saved opening
-          </button>
-          <button
-            disabled={busy || phase !== "REVEAL_OPEN" || secretBackup === null}
-            type="button"
-            onClick={() => void revealBid()}
-          >
-            Reveal saved bid
-          </button>
-          <button
-            disabled={busy || phase !== "FINALIZABLE"}
-            type="button"
-            onClick={() => void finalizeAuction()}
-          >
-            Finalize auction
-          </button>
-          <button
-            disabled={busy || (auctionSnapshot?.credit ?? 0n) === 0n}
-            type="button"
-            onClick={() => void withdrawCredit()}
-          >
-            Withdraw bond credit
+          </div>
+        </section>
+
+        <aside className="notice" aria-label="Prototype privacy notice">
+          <strong>Prototype privacy notice</strong>
+          <span>
+            Invoice bodies are encrypted offchain; contract activity remains public. Sealed bid
+            amounts are hidden only before reveal and become public after reveal.{" "}
+            {publicPaymentNotice}
+            Browser storage holds prototype encryption keys; bid openings use wallet-unlocked
+            AES-GCM encryption. Local-chain ETH has no real value.
+          </span>
+        </aside>
+
+        <section className="closing-cta" id="local-prototype" aria-labelledby="cta-title">
+          <div className="cta-mark" aria-hidden="true">
+            ⌑
+          </div>
+          <div>
+            <h2 id="cta-title">Run the local prototype</h2>
+            <p>Unaudited. No real funds. Not an Arc testnet deployment.</p>
+          </div>
+          <a className="button-link moss" href="#workflows">
+            Open workspace <span aria-hidden="true">→</span>
+          </a>
+          <div className="footer-links">
+            <a href="https://github.com/anandh8x/quietpact">GitHub ↗</a>
+            <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0 ↗</a>
+          </div>
+        </section>
+
+        <footer>
+          <span>QuietPact</span>
+          <span>Arc-ready local prototype</span>
+        </footer>
+      </main>
+
+      {busy ? (
+        <div className="pending-toast" role="status" aria-live="polite">
+          Wallet or chain action pending…
+        </div>
+      ) : null}
+      {error ? (
+        <div className="error-toast" role="alert">
+          <div>
+            <strong>Action needs attention</strong>
+            <span>{error}</span>
+          </div>
+          <button type="button" onClick={() => setError(null)} aria-label="Dismiss error">
+            ×
           </button>
         </div>
-
-        {auctionSnapshot ? <AuctionStatus snapshot={auctionSnapshot} /> : null}
-        {auctionMessage ? <p className="result success">{auctionMessage}</p> : null}
-      </section>
-
-      {error ? (
-        <p className="result error" aria-live="assertive">
-          {error}
-        </p>
       ) : null}
+    </>
+  );
+}
 
-      <aside className="notice" aria-label="Prototype privacy notice">
-        <strong>Prototype privacy notice</strong>
-        <span>
-          Invoice bodies are encrypted offchain; contract activity remains public. Sealed bid
-          amounts are hidden only before reveal and become public after reveal.{" "}
-          {publicPaymentNotice} Browser storage holds prototype encryption keys; bid openings are
-          AES-GCM encrypted behind a wallet-signature unlock. Export bid backups and keep them
-          private. Local-chain ETH has no real value.
-        </span>
-      </aside>
-      <footer>Local prototype · unaudited · no real funds</footer>
-    </main>
+function HeroLedgerRow({
+  number,
+  title,
+  status,
+  detail,
+  tone,
+}: Readonly<{
+  number: string;
+  title: string;
+  status: string;
+  detail: string;
+  tone: "private" | "public";
+}>) {
+  return (
+    <div className="ledger-row">
+      <span className="ledger-number">{number}</span>
+      <div>
+        <small>Workflow</small>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <span className={`classification ${tone}`}>{status}</span>
+      <span aria-hidden="true">→</span>
+    </div>
+  );
+}
+
+function BoundaryItem({
+  number,
+  title,
+  subtitle,
+  detail,
+  boundaryLabel,
+  tone,
+}: Readonly<{
+  number: string;
+  title: string;
+  subtitle: string;
+  detail: string;
+  boundaryLabel: string;
+  tone: "private" | "public";
+}>) {
+  return (
+    <article className={`boundary-item ${tone}`}>
+      <div className={`boundary-icon ${tone}`} aria-hidden="true">
+        {tone === "private" ? "⌑" : "◎"}
+      </div>
+      <div>
+        <span>{number}</span>
+        <h3>{title}</h3>
+        <em>{subtitle}</em>
+      </div>
+      <p>{detail}</p>
+      <strong className={tone}>{boundaryLabel}</strong>
+    </article>
   );
 }
 
@@ -827,7 +1226,7 @@ function AuctionStatus({ snapshot }: { readonly snapshot: AuctionSnapshot }) {
         <span>Your bid</span>
         <strong>
           {bid.revealed
-            ? `${bid.amount?.toString() ?? "—"} · PUBLIC AFTER REVEAL`
+            ? `${bid.amount?.toString() ?? "Not revealed"} · PUBLIC AFTER REVEAL`
             : bid.commitment === null
               ? "Not committed"
               : "HIDDEN UNTIL REVEAL"}
@@ -835,11 +1234,11 @@ function AuctionStatus({ snapshot }: { readonly snapshot: AuctionSnapshot }) {
       </div>
       <div>
         <span>Winner</span>
-        <strong>{view.winner === null ? "—" : shortAddress(view.winner)}</strong>
+        <strong>{view.winner === null ? "Not selected" : shortAddress(view.winner)}</strong>
       </div>
       <div>
         <span>Winning amount</span>
-        <strong>{view.winningAmount?.toString() ?? "—"}</strong>
+        <strong>{view.winningAmount?.toString() ?? "Not revealed"}</strong>
       </div>
     </div>
   );
@@ -911,5 +1310,25 @@ function shortAddress(value: Address): string {
 }
 
 function messageFor(cause: unknown): string {
-  return cause instanceof Error ? cause.message : "The local QuietPact workflow failed";
+  const shortMessage =
+    typeof cause === "object" &&
+    cause !== null &&
+    "shortMessage" in cause &&
+    typeof cause.shortMessage === "string"
+      ? cause.shortMessage
+      : undefined;
+  const message = shortMessage ?? (cause instanceof Error ? cause.message : undefined);
+
+  if (!message) return "The local QuietPact workflow failed. Please try again.";
+  if (/user rejected|user denied|request rejected/i.test(message)) {
+    return "The wallet request was cancelled. Nothing was submitted.";
+  }
+  if (/\b401\b|unauthori[sz]ed/i.test(message)) {
+    return "Your wallet session expired. Reconnect your wallet and try again.";
+  }
+  if (/failed to fetch|network error/i.test(message)) {
+    return "QuietPact could not reach the local service. Check that the API and Anvil are running.";
+  }
+
+  return message;
 }

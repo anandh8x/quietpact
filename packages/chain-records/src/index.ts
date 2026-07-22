@@ -1,6 +1,22 @@
-import { address, DomainError, type Address, type InvoiceState } from "@quietpact/domain";
+import {
+  address,
+  commitmentHash,
+  DomainError,
+  type Address,
+  type CommitmentHash,
+  type InvoiceState,
+  type SecretSalt,
+} from "@quietpact/domain";
 import type { EncryptedInvoiceAction, InvoiceRecords, PublicInvoiceView } from "@quietpact/invoice";
-import { zeroHash, type Hash, type PublicClient, type WalletClient } from "viem";
+import {
+  encodeAbiParameters,
+  keccak256,
+  zeroAddress,
+  zeroHash,
+  type Hash,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
 
 export const invoiceCreatedEvent = {
   type: "event",
@@ -73,6 +89,348 @@ export const invoiceRegistryAbi = [
   invoiceCreatedEvent,
   invoiceStateChangedEvent,
 ] as const;
+
+export const sealedBidAuctionAbi = [
+  {
+    type: "function",
+    name: "createAuction",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "auctionId", type: "bytes32" },
+      { name: "commitOpensAt", type: "uint64" },
+      { name: "revealOpensAt", type: "uint64" },
+      { name: "revealClosesAt", type: "uint64" },
+      { name: "bond", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "commitBid",
+    stateMutability: "payable",
+    inputs: [
+      { name: "auctionId", type: "bytes32" },
+      { name: "commitment", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "revealBid",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "auctionId", type: "bytes32" },
+      { name: "amount", type: "uint256" },
+      { name: "salt", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "finalizeAuction",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "auctionId", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "withdrawCredit",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "creditOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "credit", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getAuction",
+    stateMutability: "view",
+    inputs: [{ name: "auctionId", type: "bytes32" }],
+    outputs: [
+      {
+        name: "auction",
+        type: "tuple",
+        components: [
+          { name: "owner", type: "address" },
+          { name: "commitOpensAt", type: "uint64" },
+          { name: "revealOpensAt", type: "uint64" },
+          { name: "revealClosesAt", type: "uint64" },
+          { name: "bond", type: "uint256" },
+          { name: "bidderCount", type: "uint32" },
+          { name: "winner", type: "address" },
+          { name: "winningAmount", type: "uint256" },
+          { name: "finalized", type: "bool" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "getBid",
+    stateMutability: "view",
+    inputs: [
+      { name: "auctionId", type: "bytes32" },
+      { name: "bidder", type: "address" },
+    ],
+    outputs: [
+      {
+        name: "bid",
+        type: "tuple",
+        components: [
+          { name: "commitment", type: "bytes32" },
+          { name: "amount", type: "uint256" },
+          { name: "revealed", type: "bool" },
+        ],
+      },
+    ],
+  },
+] as const;
+
+export type AuctionPhase =
+  "SCHEDULED" | "COMMIT_OPEN" | "REVEAL_OPEN" | "FINALIZABLE" | "FINALIZED";
+
+export interface PublicAuctionRecord {
+  readonly id: Hash;
+  readonly owner: Address;
+  readonly phase: AuctionPhase;
+  readonly commitOpensAt: bigint;
+  readonly revealOpensAt: bigint;
+  readonly revealClosesAt: bigint;
+  readonly bond: bigint;
+  readonly bidderCount: number;
+  readonly winner: Address | null;
+  readonly winningAmount: bigint | null;
+}
+
+export interface PublicAuctionBidRecord {
+  readonly commitment: CommitmentHash | null;
+  readonly revealed: boolean;
+  readonly amount: bigint | null;
+  readonly visibility: "HIDDEN_UNTIL_REVEAL" | "PUBLIC_AFTER_REVEAL";
+}
+
+export interface AuctionRecords {
+  create(input: {
+    readonly actor: Address;
+    readonly id: Hash;
+    readonly commitOpensAt: bigint;
+    readonly revealOpensAt: bigint;
+    readonly revealClosesAt: bigint;
+    readonly bond: bigint;
+  }): Promise<PublicAuctionRecord>;
+  view(id: Hash): Promise<PublicAuctionRecord>;
+  bid(id: Hash, bidder: Address): Promise<PublicAuctionBidRecord>;
+  commitment(input: {
+    readonly bidder: Address;
+    readonly id: Hash;
+    readonly amount: bigint;
+    readonly salt: SecretSalt;
+  }): CommitmentHash;
+  commit(input: {
+    readonly actor: Address;
+    readonly id: Hash;
+    readonly amount: bigint;
+    readonly salt: SecretSalt;
+  }): Promise<PublicAuctionBidRecord>;
+  reveal(input: {
+    readonly actor: Address;
+    readonly id: Hash;
+    readonly amount: bigint;
+    readonly salt: SecretSalt;
+  }): Promise<PublicAuctionBidRecord>;
+  finalize(input: { readonly actor: Address; readonly id: Hash }): Promise<PublicAuctionRecord>;
+  credit(account: Address): Promise<bigint>;
+  withdraw(actor: Address): Promise<void>;
+}
+
+export function createViemAuctionRecords(options: {
+  readonly auction: Address;
+  readonly publicClient: PublicClient;
+  readonly walletClientFor: (actor: Address) => WalletClient;
+}): AuctionRecords {
+  const transactionFor = (actor: Address) => {
+    const wallet = options.walletClientFor(actor);
+    if (wallet.account === undefined) throw new Error("Auction wallet has no account");
+    if (wallet.account.address.toLowerCase() !== actor) {
+      throw new DomainError("UNAUTHORIZED", "The connected wallet does not match the actor");
+    }
+    return {
+      wallet,
+      transaction: {
+        account: wallet.account,
+        address: options.auction,
+        abi: sealedBidAuctionAbi,
+        chain: wallet.chain,
+      } as const,
+    };
+  };
+
+  const waitForSuccess = async (hash: Hash): Promise<void> => {
+    const receipt = await options.publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`Auction transaction reverted (${hash})`);
+  };
+
+  const commitment = (input: {
+    readonly bidder: Address;
+    readonly id: Hash;
+    readonly amount: bigint;
+    readonly salt: SecretSalt;
+  }): CommitmentHash => {
+    if (input.amount <= 0n) throw new Error("Bid amount must be greater than zero");
+    return commitmentHash(
+      keccak256(
+        encodeAbiParameters(
+          [
+            { type: "uint256" },
+            { type: "address" },
+            { type: "bytes32" },
+            { type: "address" },
+            { type: "uint256" },
+            { type: "bytes32" },
+          ],
+          [
+            BigInt(options.publicClient.chain?.id ?? 0),
+            options.auction,
+            input.id,
+            input.bidder,
+            input.amount,
+            input.salt,
+          ],
+        ),
+      ),
+    );
+  };
+
+  const view = async (id: Hash): Promise<PublicAuctionRecord> => {
+    const [auction, block] = await Promise.all([
+      options.publicClient.readContract({
+        address: options.auction,
+        abi: sealedBidAuctionAbi,
+        functionName: "getAuction",
+        args: [id],
+      }),
+      options.publicClient.getBlock({ blockTag: "latest" }),
+    ]);
+    const phase: AuctionPhase = auction.finalized
+      ? "FINALIZED"
+      : block.timestamp < auction.commitOpensAt
+        ? "SCHEDULED"
+        : block.timestamp < auction.revealOpensAt
+          ? "COMMIT_OPEN"
+          : block.timestamp < auction.revealClosesAt
+            ? "REVEAL_OPEN"
+            : "FINALIZABLE";
+    return Object.freeze({
+      id,
+      owner: address(auction.owner),
+      phase,
+      commitOpensAt: auction.commitOpensAt,
+      revealOpensAt: auction.revealOpensAt,
+      revealClosesAt: auction.revealClosesAt,
+      bond: auction.bond,
+      bidderCount: auction.bidderCount,
+      winner: auction.winner === zeroAddress ? null : address(auction.winner),
+      winningAmount:
+        auction.finalized && auction.winner !== zeroAddress ? auction.winningAmount : null,
+    });
+  };
+
+  const bid = async (id: Hash, bidder: Address): Promise<PublicAuctionBidRecord> => {
+    const record = await options.publicClient.readContract({
+      address: options.auction,
+      abi: sealedBidAuctionAbi,
+      functionName: "getBid",
+      args: [id, bidder],
+    });
+    return Object.freeze({
+      commitment: record.commitment === zeroHash ? null : commitmentHash(record.commitment),
+      revealed: record.revealed,
+      amount: record.revealed ? record.amount : null,
+      visibility: record.revealed ? "PUBLIC_AFTER_REVEAL" : "HIDDEN_UNTIL_REVEAL",
+    });
+  };
+
+  return {
+    commitment,
+    view,
+    bid,
+    async create(input) {
+      const { wallet, transaction } = transactionFor(input.actor);
+      const hash = await wallet.writeContract({
+        ...transaction,
+        functionName: "createAuction",
+        args: [
+          input.id,
+          input.commitOpensAt,
+          input.revealOpensAt,
+          input.revealClosesAt,
+          input.bond,
+        ],
+      });
+      await waitForSuccess(hash);
+      return view(input.id);
+    },
+    async commit(input) {
+      const auction = await view(input.id);
+      const opening = commitment({
+        bidder: input.actor,
+        id: input.id,
+        amount: input.amount,
+        salt: input.salt,
+      });
+      const { wallet, transaction } = transactionFor(input.actor);
+      const hash = await wallet.writeContract({
+        ...transaction,
+        functionName: "commitBid",
+        args: [input.id, opening],
+        value: auction.bond,
+      });
+      await waitForSuccess(hash);
+      return bid(input.id, input.actor);
+    },
+    async reveal(input) {
+      const { wallet, transaction } = transactionFor(input.actor);
+      const hash = await wallet.writeContract({
+        ...transaction,
+        functionName: "revealBid",
+        args: [input.id, input.amount, input.salt],
+      });
+      await waitForSuccess(hash);
+      return bid(input.id, input.actor);
+    },
+    async finalize(input) {
+      const { wallet, transaction } = transactionFor(input.actor);
+      const hash = await wallet.writeContract({
+        ...transaction,
+        functionName: "finalizeAuction",
+        args: [input.id],
+      });
+      await waitForSuccess(hash);
+      return view(input.id);
+    },
+    credit(account) {
+      return options.publicClient.readContract({
+        address: options.auction,
+        abi: sealedBidAuctionAbi,
+        functionName: "creditOf",
+        args: [account],
+      });
+    },
+    async withdraw(actor) {
+      const { wallet, transaction } = transactionFor(actor);
+      const hash = await wallet.writeContract({
+        ...transaction,
+        functionName: "withdrawCredit",
+      });
+      await waitForSuccess(hash);
+    },
+  };
+}
 
 export interface ViemInvoiceRecordsOptions {
   readonly registry: Address;

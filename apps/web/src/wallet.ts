@@ -21,11 +21,13 @@ export interface WalletSession {
   readonly account: Address;
   readonly chainId: bigint;
   readonly registry: Address;
+  readonly auction: Address;
   readonly publicClient: PublicClient;
   readonly walletClient: WalletClient;
 }
 
 const defaultLocalRegistry = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+const defaultLocalAuction = "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512";
 
 export async function connectInjectedWallet(): Promise<WalletSession> {
   const provider = window.ethereum;
@@ -36,6 +38,7 @@ export async function connectInjectedWallet(): Promise<WalletSession> {
   const expectedChainId = parseChainId(import.meta.env.VITE_QUIETPACT_CHAIN_ID ?? "31337");
   const rpcUrl = import.meta.env.VITE_QUIETPACT_RPC_URL ?? "http://127.0.0.1:8545";
   const registry = address(import.meta.env.VITE_QUIETPACT_REGISTRY_ADDRESS ?? defaultLocalRegistry);
+  const auction = address(import.meta.env.VITE_QUIETPACT_AUCTION_ADDRESS ?? defaultLocalAuction);
   const chain = defineChain({
     id: Number(expectedChainId),
     name: "QuietPact local chain",
@@ -63,6 +66,7 @@ export async function connectInjectedWallet(): Promise<WalletSession> {
     account: address(walletAddress),
     chainId: expectedChainId,
     registry,
+    auction,
     publicClient: createPublicClient({ chain, transport: http(rpcUrl) }),
     walletClient: createWalletClient({
       account: walletAddress,

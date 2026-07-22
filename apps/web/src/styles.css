@@ -96,6 +96,83 @@ form {
   gap: 0.75rem;
 }
 
+.auction-demo {
+  border-color: #4a4130;
+  background:
+    radial-gradient(circle at 85% 15%, rgb(194 151 80 / 12%), transparent 32%), rgb(24 27 23 / 78%);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.auction-workspace {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(150px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  border-top: 1px solid #484131;
+  padding-top: 1.5rem;
+}
+
+.auction-workspace > button,
+.file-button {
+  min-height: 3rem;
+}
+
+.file-button {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  color: #10110f;
+  background: #d7bd83;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.auction-status {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid #484131;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.auction-status div {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 1rem;
+  border-right: 1px solid #484131;
+  border-bottom: 1px solid #484131;
+}
+
+.auction-status span {
+  color: #a99f8a;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auction-status strong {
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+}
+
 label {
   display: grid;
   gap: 0.5rem;
@@ -156,6 +233,10 @@ button:disabled {
 .result.error {
   border-color: #c87970;
   color: #f0c1bc;
+}
+
+.result.success {
+  border-color: #d7bd83;
 }
 
 .eyebrow {
@@ -227,9 +308,19 @@ footer {
 
   .topline,
   .invoice-actions,
-  .action-row {
+  .action-row,
+  .field-grid,
+  .auction-workspace,
+  .auction-status {
     align-items: stretch;
     flex-direction: column;
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 1000px) {
+  .auction-workspace,
+  .auction-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -10,13 +10,15 @@
   "scripts": {
     "dev": "pnpm --parallel --filter './apps/*' dev",
     "chain:node": "anvil --chain-id 31337",
-    "chain:deploy": "forge create --root contracts --broadcast --rpc-url http://127.0.0.1:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 src/InvoiceRegistry.sol:InvoiceRegistry",
+    "chain:deploy": "pnpm chain:deploy:invoice && pnpm chain:deploy:auction",
+    "chain:deploy:invoice": "forge create --root contracts --broadcast --rpc-url http://127.0.0.1:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 src/InvoiceRegistry.sol:InvoiceRegistry",
+    "chain:deploy:auction": "forge create --root contracts --broadcast --rpc-url http://127.0.0.1:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 src/SealedBidAuction.sol:SealedBidAuction",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "vitest run --exclude **/*.integration.test.ts",
-    "test:chain": "vitest run packages/chain-records/test/invoice-registry.integration.test.ts apps/api/test/invoice-projection.integration.test.ts",
+    "test:chain": "vitest run packages/chain-records/test/invoice-registry.integration.test.ts packages/chain-records/test/sealed-bid-auction.integration.test.ts apps/api/test/invoice-projection.integration.test.ts",
     "contracts:test": "forge test --root contracts",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

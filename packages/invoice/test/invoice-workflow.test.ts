@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { address } from "@quietpact/domain";
 import { createEnvelopeModule } from "@quietpact/envelope";
+import { publicPaymentReference } from "@quietpact/payments";
 
 import {
   createEncryptedInvoiceModule,
@@ -91,12 +92,23 @@ describe("encrypted invoice workflow", () => {
     });
 
     const approved = await moduleFor(payer).act(invoiceId, { type: "approve" });
+    const transactionReference = publicPaymentReference(`0x${"ab".repeat(32)}`);
+    const referenced = await moduleFor(payer).act(invoiceId, {
+      type: "attachPublicPayment",
+      reference: transactionReference,
+    });
 
     expect(approved.public.state).toBe("APPROVED");
     expect(approved.body).toEqual({ amount: "1250.00", currency: "USDC" });
     await expect(moduleFor(payee).view(invoiceId)).resolves.toMatchObject({
-      public: { state: "APPROVED" },
+      public: {
+        state: "PAYMENT_REFERENCED",
+        publicPaymentReference: transactionReference,
+      },
     });
+    expect(referenced.public.privacyLabel).toBe(
+      "Encrypted workflow data · no private payment claim",
+    );
   });
 
   it("shows only public state to a stranger and rejects their approval", async () => {

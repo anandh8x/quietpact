@@ -57,6 +57,7 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
       commitment TEXT NOT NULL,
       ciphertext_hash TEXT NOT NULL,
       state TEXT NOT NULL,
+      public_payment_reference TEXT,
       created_transaction_hash TEXT NOT NULL,
       latest_transaction_hash TEXT NOT NULL,
       latest_block TEXT NOT NULL,
@@ -80,6 +81,14 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
     SET through_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
     WHERE through_hash = '0x'
   `);
+  const projectionColumns = database.prepare("PRAGMA table_info(invoice_projection)").all();
+  if (
+    !projectionColumns.some(
+      (column) => requiredString(column, "name") === "public_payment_reference",
+    )
+  ) {
+    database.exec("ALTER TABLE invoice_projection ADD COLUMN public_payment_reference TEXT");
+  }
 
   const putEnvelope = database.prepare(
     "INSERT OR IGNORE INTO invoice_envelopes (id, envelope_json) VALUES (?, ?)",
@@ -125,16 +134,21 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
   const insertProjection = database.prepare(`
     INSERT OR IGNORE INTO invoice_projection (
       scope, id, payer, payee, commitment, ciphertext_hash, state,
-      created_transaction_hash, latest_transaction_hash, latest_block
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      public_payment_reference, created_transaction_hash, latest_transaction_hash, latest_block
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateProjectionState = database.prepare(`
     UPDATE invoice_projection
     SET state = ?, latest_transaction_hash = ?, latest_block = ?
     WHERE scope = ? AND id = ?
   `);
+  const updateProjectionPayment = database.prepare(`
+    UPDATE invoice_projection
+    SET public_payment_reference = ?, latest_transaction_hash = ?, latest_block = ?
+    WHERE scope = ? AND id = ?
+  `);
   const getProjection = database.prepare(`
-    SELECT id, payer, payee, commitment, ciphertext_hash, state,
+    SELECT id, payer, payee, commitment, ciphertext_hash, state, public_payment_reference,
       created_transaction_hash, latest_transaction_hash, latest_block
     FROM invoice_projection WHERE scope = ? AND id = ?
   `);
@@ -236,6 +250,7 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
                   invoice.commitment,
                   invoice.ciphertextHash,
                   invoice.state,
+                  invoice.publicPaymentReference,
                   invoice.createdTransactionHash,
                   invoice.latestTransactionHash,
                   invoice.latestBlock.toString(),
@@ -246,7 +261,7 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
                     throw new Error("Conflicting InvoiceCreated event in projection");
                   }
                 }
-              } else {
+              } else if (event.type === "stateChanged") {
                 const result = updateProjectionState.run(
                   event.state,
                   event.transactionHash,
@@ -256,6 +271,17 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
                 );
                 if (result.changes === 0) {
                   throw new Error("Invoice state event has no projected invoice");
+                }
+              } else {
+                const result = updateProjectionPayment.run(
+                  event.reference,
+                  event.transactionHash,
+                  event.blockNumber.toString(),
+                  scope,
+                  event.id,
+                );
+                if (result.changes === 0) {
+                  throw new Error("Public payment event has no projected invoice");
                 }
               }
             }
@@ -291,10 +317,20 @@ function parseProjection(row: object): PublicInvoiceProjection {
     commitment: requiredHex(row, "commitment"),
     ciphertextHash: requiredHex(row, "ciphertext_hash"),
     state: requiredInvoiceState(row, "state"),
+    publicPaymentReference: optionalHex(row, "public_payment_reference"),
     createdTransactionHash: requiredHex(row, "created_transaction_hash"),
     latestTransactionHash: requiredHex(row, "latest_transaction_hash"),
     latestBlock: BigInt(requiredString(row, "latest_block")),
   };
+}
+
+function optionalHex(row: object, key: string): `0x${string}` | null {
+  const value = (row as Record<string, unknown>)[key];
+  if (value === null) return null;
+  if (typeof value !== "string" || !/^0x[0-9a-f]+$/i.test(value)) {
+    throw new Error(`Database column ${key} is invalid`);
+  }
+  return value as `0x${string}`;
 }
 
 function sameCreatedProjection(row: object, invoice: PublicInvoiceProjection): boolean {

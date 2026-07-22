@@ -42,6 +42,16 @@ export const invoiceStateChangedEvent = {
   anonymous: false,
 } as const;
 
+export const publicPaymentReferencedEvent = {
+  type: "event",
+  name: "PublicPaymentReferenced",
+  inputs: [
+    { name: "invoiceId", type: "bytes32", indexed: true },
+    { name: "transactionReference", type: "bytes32", indexed: true },
+  ],
+  anonymous: false,
+} as const;
+
 export const invoiceRegistryAbi = [
   {
     type: "function",
@@ -62,6 +72,16 @@ export const invoiceRegistryAbi = [
     name: "approveInvoice",
     stateMutability: "nonpayable",
     inputs: [{ name: "invoiceId", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "attachPublicPayment",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "invoiceId", type: "bytes32" },
+      { name: "transactionReference", type: "bytes32" },
+    ],
     outputs: [],
   },
   {
@@ -88,6 +108,7 @@ export const invoiceRegistryAbi = [
   },
   invoiceCreatedEvent,
   invoiceStateChangedEvent,
+  publicPaymentReferencedEvent,
 ] as const;
 
 export const sealedBidAuctionAbi = [
@@ -455,6 +476,7 @@ export interface PublicInvoiceProjection {
   readonly commitment: `0x${string}`;
   readonly ciphertextHash: `0x${string}`;
   readonly state: InvoiceState;
+  readonly publicPaymentReference: Hash | null;
   readonly createdTransactionHash: Hash;
   readonly latestTransactionHash: Hash;
   readonly latestBlock: bigint;
@@ -470,6 +492,14 @@ export type InvoiceProjectionEvent =
       type: "stateChanged";
       id: `0x${string}`;
       state: InvoiceState;
+      transactionHash: Hash;
+      blockNumber: bigint;
+      logIndex: number;
+    }>
+  | Readonly<{
+      type: "paymentReferenced";
+      id: `0x${string}`;
+      reference: Hash;
       transactionHash: Hash;
       blockNumber: bigint;
       logIndex: number;
@@ -518,7 +548,7 @@ export function createViemInvoiceProjector(options: {
         return { fromBlock: null, throughBlock, events: 0 };
       }
 
-      const [createdLogs, stateLogs] = await Promise.all([
+      const [createdLogs, stateLogs, paymentLogs] = await Promise.all([
         options.publicClient.getLogs({
           address: options.registry,
           event: invoiceCreatedEvent,
@@ -528,6 +558,12 @@ export function createViemInvoiceProjector(options: {
         options.publicClient.getLogs({
           address: options.registry,
           event: invoiceStateChangedEvent,
+          fromBlock,
+          toBlock: throughBlock,
+        }),
+        options.publicClient.getLogs({
+          address: options.registry,
+          event: publicPaymentReferencedEvent,
           fromBlock,
           toBlock: throughBlock,
         }),
@@ -545,6 +581,7 @@ export function createViemInvoiceProjector(options: {
               commitment: args.commitment,
               ciphertextHash: args.ciphertextHash,
               state: "REGISTERED" as const,
+              publicPaymentReference: null,
               createdTransactionHash: location.transactionHash,
               latestTransactionHash: location.transactionHash,
               latestBlock: location.blockNumber,
@@ -559,6 +596,18 @@ export function createViemInvoiceProjector(options: {
             type: "stateChanged" as const,
             id: args.invoiceId,
             state: invoiceStateFromIndex(args.state),
+            transactionHash: location.transactionHash,
+            blockNumber: location.blockNumber,
+            logIndex: location.logIndex,
+          };
+        }),
+        ...paymentLogs.map((log) => {
+          const location = requireLogLocation(log);
+          const args = requirePaymentReferencedArgs(log.args);
+          return {
+            type: "paymentReferenced" as const,
+            id: args.invoiceId,
+            reference: args.transactionReference,
             transactionHash: location.transactionHash,
             blockNumber: location.blockNumber,
             logIndex: location.logIndex,
@@ -598,6 +647,10 @@ export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): In
       | Readonly<{
           functionName: "approveInvoice";
           args: readonly [`0x${string}`];
+        }>
+      | Readonly<{
+          functionName: "attachPublicPayment";
+          args: readonly [`0x${string}`, `0x${string}`];
         }>,
   ): Promise<void> {
     const wallet = options.walletClientFor(actor);
@@ -614,18 +667,11 @@ export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): In
       abi: invoiceRegistryAbi,
       chain: wallet.chain,
     } as const;
-    const hash =
-      request.functionName === "createInvoice"
-        ? await wallet.writeContract({
-            ...transaction,
-            functionName: request.functionName,
-            args: request.args,
-          })
-        : await wallet.writeContract({
-            ...transaction,
-            functionName: request.functionName,
-            args: request.args,
-          });
+    const hash = await wallet.writeContract({
+      ...transaction,
+      functionName: request.functionName,
+      args: request.args,
+    });
     const receipt = await options.publicClient.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") {
       throw new Error(`Invoice registry transaction reverted (${hash})`);
@@ -650,6 +696,8 @@ export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): In
       ciphertextHash: invoice.ciphertextHash,
       ciphertextReference: referenceFor(id),
       state,
+      publicPaymentReference:
+        invoice.publicPaymentReference === zeroHash ? null : invoice.publicPaymentReference,
       privacyLabel: "Encrypted workflow data · no private payment claim",
     });
   }
@@ -682,6 +730,19 @@ export function createViemInvoiceRecords(options: ViemInvoiceRecordsOptions): In
           throw new DomainError("UNAUTHORIZED", "Only the payer can approve an invoice");
         }
         await submit(actor, { functionName: "approveInvoice", args: [id] });
+        return view(id);
+      }
+      if (action.type === "attachPublicPayment") {
+        if (actor !== current.payer) {
+          throw new DomainError(
+            "UNAUTHORIZED",
+            "Only the payer can attach a public payment reference",
+          );
+        }
+        await submit(actor, {
+          functionName: "attachPublicPayment",
+          args: [id, action.reference],
+        });
         return view(id);
       }
       throw new Error("Unsupported invoice action");
@@ -752,6 +813,16 @@ function requireStateChangedArgs(args: {
     throw new Error("InvoiceStateChanged log is missing arguments");
   }
   return { invoiceId: args.invoiceId, state: args.state };
+}
+
+function requirePaymentReferencedArgs(args: {
+  readonly invoiceId?: Hash | undefined;
+  readonly transactionReference?: Hash | undefined;
+}): Readonly<{ invoiceId: Hash; transactionReference: Hash }> {
+  if (args.invoiceId === undefined || args.transactionReference === undefined) {
+    throw new Error("PublicPaymentReferenced log is missing arguments");
+  }
+  return { invoiceId: args.invoiceId, transactionReference: args.transactionReference };
 }
 
 function compareProjectionEvents(

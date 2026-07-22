@@ -96,6 +96,73 @@ form {
   gap: 0.75rem;
 }
 
+.payment-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.7fr) auto;
+  gap: 1rem;
+  align-items: end;
+  border-top: 1px solid #343831;
+  padding-top: 1.5rem;
+}
+
+.payment-panel h3 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.payment-panel .eyebrow {
+  margin-top: 0;
+}
+
+.acknowledgement {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid #72574d;
+  border-radius: 0.85rem;
+  padding: 0.9rem 1rem;
+  color: #dfc3b8;
+  background: #211814;
+  line-height: 1.45;
+}
+
+.acknowledgement input {
+  width: 1rem;
+  margin-top: 0.15rem;
+  accent-color: #d9a68f;
+}
+
+.public-payment-button {
+  color: #f5ddd3;
+  background: #704638;
+}
+
+.payment-result {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 0.8fr;
+  gap: 0.75rem;
+  align-items: center;
+  border-left: 3px solid #a99b77;
+  padding: 1rem 1.25rem;
+  background: #1c1b16;
+}
+
+.payment-result.public {
+  border-color: #c87970;
+  background: #211814;
+}
+
+.payment-result code {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #a79b91;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+}
+
 .auction-demo {
   border-color: #4a4130;
   background:
@@ -309,6 +376,8 @@ footer {
   .topline,
   .invoice-actions,
   .action-row,
+  .payment-panel,
+  .payment-result,
   .field-grid,
   .auction-workspace,
   .auction-status {

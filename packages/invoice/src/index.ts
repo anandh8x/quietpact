@@ -7,6 +7,7 @@ import {
   type RecipientKey,
   type SealedEnvelope,
 } from "@quietpact/envelope";
+import type { PublicPaymentReference } from "@quietpact/payments";
 import { keccak256, toHex, type Hex } from "viem";
 
 export interface InvoiceParticipant {
@@ -34,6 +35,7 @@ export interface PublicInvoiceView {
   readonly ciphertextHash: Hex;
   readonly ciphertextReference: string;
   readonly state: InvoiceState;
+  readonly publicPaymentReference: Hex | null;
   readonly privacyLabel: "Encrypted workflow data · no private payment claim";
 }
 
@@ -48,7 +50,9 @@ export interface EncryptedInvoiceModule {
   view<T>(id: Hex32): Promise<EncryptedInvoiceView<T>>;
 }
 
-export type EncryptedInvoiceAction = Readonly<{ type: "approve" }>;
+export type EncryptedInvoiceAction =
+  | Readonly<{ type: "approve" }>
+  | Readonly<{ type: "attachPublicPayment"; reference: PublicPaymentReference }>;
 
 export interface InvoiceBlobStore {
   put(
@@ -186,6 +190,7 @@ export function createInMemoryInvoiceAdapters(): {
           ciphertextHash: input.ciphertextHash,
           ciphertextReference: input.ciphertextReference,
           state: "REGISTERED",
+          publicPaymentReference: null,
           privacyLabel: "Encrypted workflow data · no private payment claim",
         });
         invoices.set(input.id, view);
@@ -207,6 +212,27 @@ export function createInMemoryInvoiceAdapters(): {
           const approved: PublicInvoiceView = Object.freeze({ ...invoice, state: "APPROVED" });
           invoices.set(id, approved);
           return Promise.resolve(approved);
+        }
+
+        if (action.type === "attachPublicPayment") {
+          if (actor !== invoice.payer) {
+            return Promise.reject(
+              new DomainError(
+                "UNAUTHORIZED",
+                "Only the payer can attach a public payment reference",
+              ),
+            );
+          }
+          if (invoice.state !== "APPROVED") {
+            return Promise.reject(new Error("Invoice cannot accept a public payment reference"));
+          }
+          const referenced: PublicInvoiceView = Object.freeze({
+            ...invoice,
+            state: "PAYMENT_REFERENCED",
+            publicPaymentReference: action.reference,
+          });
+          invoices.set(id, referenced);
+          return Promise.resolve(referenced);
         }
 
         return Promise.reject(new Error("Unsupported invoice action"));

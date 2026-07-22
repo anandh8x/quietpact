@@ -17,6 +17,7 @@
     "viem": "^2.0.0"
   },
   "devDependencies": {
-    "@quietpact/envelope": "workspace:*"
+    "@quietpact/envelope": "workspace:*",
+    "@quietpact/payments": "workspace:*"
   }
 }

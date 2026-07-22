@@ -1,5 +1,5 @@
 {
-  "name": "@quietpact/invoice",
+  "name": "@quietpact/payments",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,6 @@
   },
   "dependencies": {
     "@quietpact/domain": "workspace:*",
-    "@quietpact/envelope": "workspace:*",
-    "@quietpact/payments": "workspace:*",
     "viem": "^2.0.0"
   }
 }

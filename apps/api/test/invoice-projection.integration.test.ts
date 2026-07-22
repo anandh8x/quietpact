@@ -21,6 +21,7 @@ import {
   type InvoiceBlobStore,
   type InvoiceParticipant,
 } from "@quietpact/invoice";
+import { publicPaymentReference as confirmedPublicPaymentReference } from "@quietpact/payments";
 import { createPublicClient, createWalletClient, http, keccak256, toHex, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
@@ -113,6 +114,11 @@ describe("invoice event projection and leakage gate", () => {
 
     await moduleFor(payee).create({ id: invoiceId, payer, payee, body });
     const approved = await moduleFor(payer).act<typeof body>(invoiceId, { type: "approve" });
+    const publicPaymentReference = confirmedPublicPaymentReference(`0x${"ab".repeat(32)}`);
+    const referenced = await moduleFor(payer).act<typeof body>(invoiceId, {
+      type: "attachPublicPayment",
+      reference: publicPaymentReference,
+    });
     const projection = database.invoiceProjection(`31337:${address(registry)}`);
     const projector = createViemInvoiceProjector({
       registry: address(registry),
@@ -190,9 +196,17 @@ describe("invoice event projection and leakage gate", () => {
     ]);
 
     expect(approved).toMatchObject({ public: { state: "APPROVED" }, body });
-    expect(firstSync.events).toBe(2);
+    expect(referenced).toMatchObject({
+      public: { state: "PAYMENT_REFERENCED", publicPaymentReference },
+      body,
+    });
+    expect(firstSync.events).toBe(4);
     expect(secondSync.events).toBe(0);
-    expect(projected).toMatchObject({ id: invoiceId, state: "APPROVED" });
+    expect(projected).toMatchObject({
+      id: invoiceId,
+      state: "PAYMENT_REFERENCED",
+      publicPaymentReference,
+    });
     expect(publicResponse.statusCode).toBe(200);
     expect(envelopeResponse.statusCode).toBe(201);
     expect(publicArtifacts).not.toContain(canary);

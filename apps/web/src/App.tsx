@@ -18,6 +18,15 @@ import {
   type InvoiceParticipant,
   type InvoiceParty,
 } from "@quietpact/invoice";
+import {
+  PUBLIC_PAYMENT_ACKNOWLEDGEMENT,
+  acknowledgePublicPayment,
+  createBrowserPaymentRecords,
+  createSimulatedPayments,
+  createViemPublicPayments,
+  type PublicChainPayment,
+  type SimulatedPayment,
+} from "@quietpact/payments";
 import { formatEther, parseEther, type Hash } from "viem";
 
 import {
@@ -72,6 +81,11 @@ export function App() {
   const [invoiceInput, setInvoiceInput] = useState("");
   const [connected, setConnected] = useState<ConnectedWallet | null>(null);
   const [result, setResult] = useState<DemoResult | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("0.001");
+  const [publicPaymentAccepted, setPublicPaymentAccepted] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<SimulatedPayment | PublicChainPayment | null>(
+    null,
+  );
   const [auctionInput, setAuctionInput] = useState("");
   const [bidAmount, setBidAmount] = useState("75");
   const [bondEth, setBondEth] = useState("0.01");
@@ -116,6 +130,19 @@ export function App() {
       walletClientFor: () => connected.session.walletClient,
     });
   }, [connected]);
+  const paymentRecords = useMemo(() => createBrowserPaymentRecords(localStorage), []);
+  const simulatedPayments = useMemo(
+    () => createSimulatedPayments({ records: paymentRecords.simulations }),
+    [paymentRecords],
+  );
+  const publicPayments = useMemo(() => {
+    if (connected === null) return null;
+    return createViemPublicPayments({
+      publicClient: connected.session.publicClient,
+      walletClientFor: () => connected.session.walletClient,
+      records: paymentRecords.publicPayments,
+    });
+  }, [connected, paymentRecords]);
 
   const connect = async () => {
     setBusy(true);
@@ -128,6 +155,8 @@ export function App() {
       await publishEncryptionKey(apiUrl, session.account, identity, apiToken);
       setConnected({ session, envelopes, identity, apiToken });
       setResult(null);
+      setPaymentResult(null);
+      setPublicPaymentAccepted(false);
       setAuctionSnapshot(null);
       setSecretBackup(null);
       setEncryptedBackup(null);
@@ -191,6 +220,71 @@ export function App() {
         state: opened.public.state,
         detail: `${opened.body.amount} USDC · ${opened.body.memo}`,
       });
+    } catch (cause: unknown) {
+      setError(messageFor(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const simulateInvoicePayment = async () => {
+    await runPaymentAction(async () => {
+      if (connected === null || invoiceModule === null) throw new Error("Connect a wallet first");
+      const id = parseHex32(invoiceInput, "Invoice ID");
+      const invoice = await invoiceModule.view<unknown>(id);
+      if (invoice.public.payer !== connected.session.account) {
+        throw new Error("Only the invoice payer can prepare its payment");
+      }
+      const simulation = await simulatedPayments.send({
+        payer: invoice.public.payer,
+        payee: invoice.public.payee,
+        amount: parsePositiveEther(paymentAmount),
+      });
+      setPaymentResult(simulation);
+    });
+  };
+
+  const sendPublicInvoicePayment = async () => {
+    await runPaymentAction(async () => {
+      if (connected === null || invoiceModule === null || publicPayments === null) {
+        throw new Error("Connect a wallet first");
+      }
+      const id = parseHex32(invoiceInput, "Invoice ID");
+      const invoice = await invoiceModule.view<unknown>(id);
+      if (invoice.public.payer !== connected.session.account) {
+        throw new Error("Only the invoice payer can send its payment");
+      }
+      if (invoice.public.state !== "APPROVED") {
+        throw new Error("Approve the invoice before attaching a public payment");
+      }
+      const payment = await publicPayments.send(
+        {
+          payer: invoice.public.payer,
+          payee: invoice.public.payee,
+          amount: parsePositiveEther(paymentAmount),
+        },
+        acknowledgePublicPayment(publicPaymentAccepted),
+      );
+      setPaymentResult(payment);
+      const referenced = await invoiceModule.act<unknown>(id, {
+        type: "attachPublicPayment",
+        reference: payment.reference,
+      });
+      setResult({
+        id,
+        commitment: referenced.public.commitment,
+        state: referenced.public.state,
+        detail: "Confirmed public transfer reference attached; amount was not reconciled",
+      });
+    });
+  };
+
+  const runPaymentAction = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    setPaymentResult(null);
+    try {
+      await action();
     } catch (cause: unknown) {
       setError(messageFor(cause));
     } finally {
@@ -481,6 +575,61 @@ export function App() {
           </div>
         </div>
 
+        <div className="payment-panel">
+          <div>
+            <p className="eyebrow">Phase 6 · Payment adapters</p>
+            <h3>Simulate, or send publicly</h3>
+            <p className="demo-copy">
+              This local ETH amount is entered separately and is never compared with the encrypted
+              invoice amount. Simulation cannot update invoice accounting.
+            </p>
+          </div>
+          <label>
+            Transfer amount (local ETH)
+            <input
+              required
+              inputMode="decimal"
+              value={paymentAmount}
+              onChange={(event) => setPaymentAmount(event.target.value)}
+            />
+          </label>
+          <button
+            disabled={busy || actor === null}
+            type="button"
+            onClick={() => void simulateInvoicePayment()}
+          >
+            Simulate only
+          </button>
+          <label className="acknowledgement">
+            <input
+              type="checkbox"
+              checked={publicPaymentAccepted}
+              onChange={(event) => setPublicPaymentAccepted(event.target.checked)}
+            />
+            <span>{PUBLIC_PAYMENT_ACKNOWLEDGEMENT}</span>
+          </label>
+          <button
+            className="public-payment-button"
+            disabled={busy || actor === null || !publicPaymentAccepted}
+            type="button"
+            onClick={() => void sendPublicInvoicePayment()}
+          >
+            Send public local-chain payment
+          </button>
+        </div>
+
+        {paymentResult ? (
+          <div
+            className={`payment-result ${paymentResult.kind === "SIMULATION" ? "simulation" : "public"}`}
+            aria-live="polite"
+          >
+            <strong>{paymentResult.label}</strong>
+            <span>{formatEther(paymentResult.amount)} local ETH</span>
+            <span>{paymentResult.classification}</span>
+            <code>{paymentResult.reference}</code>
+          </div>
+        ) : null}
+
         {result ? (
           <div className="result" aria-live="polite">
             <strong>{result.state}</strong>
@@ -743,6 +892,12 @@ function parseHex32(value: string, label: string): Hash {
 function positiveInteger(value: string, label: string): bigint {
   if (!/^[1-9][0-9]*$/.test(value)) throw new Error(`${label} must be a positive integer`);
   return BigInt(value);
+}
+
+function parsePositiveEther(value: string): bigint {
+  const parsed = parseEther(value);
+  if (parsed <= 0n) throw new Error("Payment amount must be greater than zero");
+  return parsed;
 }
 
 function formatTimestamp(value: bigint): string {

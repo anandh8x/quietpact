@@ -8,6 +8,7 @@ import {
   type InvoiceBlobStore,
   type InvoiceParticipant,
 } from "@quietpact/invoice";
+import { publicPaymentReference } from "@quietpact/payments";
 import { createPublicClient, createWalletClient, http, keccak256, toHex, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
@@ -87,6 +88,11 @@ describe("Viem InvoiceRegistry adapter on Anvil", () => {
       ciphertextReference: `invoice-envelope:${id}`,
     });
     const approved = await records.act(id, payer, { type: "approve" });
+    const paymentReference = publicPaymentReference(`0x${"55".repeat(32)}`);
+    const referenced = await records.act(id, payer, {
+      type: "attachPublicPayment",
+      reference: paymentReference,
+    });
 
     expect(registered).toMatchObject({
       id,
@@ -96,7 +102,11 @@ describe("Viem InvoiceRegistry adapter on Anvil", () => {
       ciphertextReference: `invoice-envelope:${id}`,
     });
     expect(approved.state).toBe("APPROVED");
-    await expect(records.view(id)).resolves.toMatchObject({ state: "APPROVED" });
+    expect(referenced).toMatchObject({
+      state: "PAYMENT_REFERENCED",
+      publicPaymentReference: paymentReference,
+    });
+    await expect(records.view(id)).resolves.toMatchObject({ state: "PAYMENT_REFERENCED" });
   });
 
   it("rejects an actor whose connected wallet does not match", async () => {

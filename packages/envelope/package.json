@@ -1,0 +1,18 @@
+{
+  "name": "@quietpact/envelope",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "libsodium-wrappers": "^0.8.0",
+    "viem": "^2.0.0"
+  }
+}

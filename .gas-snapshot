@@ -1,3 +1,4 @@
+InvoiceCommitmentTest:testFixedTypeScriptVectorMatchesSolidity() (gas: 446)
 InvoiceRegistryTest:testFuzzNonPartiesCannotRegisterInvoices(address) (runs: 256, μ: 10110, ~: 10110)
 InvoiceRegistryTest:testInvoiceMovesThroughPublicPaymentReferenceLifecycle() (gas: 189859)
 InvoiceRegistryTest:testInvoicePartyRegistersCommitmentWithoutAmount() (gas: 151291)

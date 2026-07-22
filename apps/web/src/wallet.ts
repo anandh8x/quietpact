@@ -104,6 +104,7 @@ export async function publishEncryptionKey(
   baseUrl: string,
   account: Address,
   identity: RecipientIdentity,
+  token: string,
 ): Promise<void> {
   const response = await fetch(
     `${trimSlash(baseUrl)}/v1/encryption-keys/${encodeURIComponent(account)}`,
@@ -111,12 +112,41 @@ export async function publishEncryptionKey(
       method: "PUT",
       headers: {
         "content-type": "application/json",
-        "x-quietpact-dev-wallet": account,
+        authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ publicKey: identity.publicKey }),
     },
   );
   if (!response.ok) throw new Error(`Encryption-key publishing failed (${response.status})`);
+}
+
+export async function createApiSession(baseUrl: string, session: WalletSession): Promise<string> {
+  const challengeResponse = await fetch(`${trimSlash(baseUrl)}/v1/auth/challenges`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ address: session.account }),
+  });
+  if (!challengeResponse.ok) {
+    throw new Error(`Wallet challenge request failed (${challengeResponse.status})`);
+  }
+  const challenge = parseChallenge(await challengeResponse.json());
+  const signature = await session.walletClient.signMessage({
+    account: session.account,
+    message: challenge.message,
+  });
+  const sessionResponse = await fetch(`${trimSlash(baseUrl)}/v1/auth/sessions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      address: session.account,
+      nonce: challenge.nonce,
+      signature,
+    }),
+  });
+  if (!sessionResponse.ok) {
+    throw new Error(`Wallet session creation failed (${sessionResponse.status})`);
+  }
+  return parseSessionToken(await sessionResponse.json());
 }
 
 export async function getEncryptionKey(baseUrl: string, account: Address): Promise<RecipientKey> {
@@ -157,4 +187,36 @@ function parseChainId(value: string): bigint {
 
 function trimSlash(value: string): string {
   return value.replace(/\/$/, "");
+}
+
+function parseChallenge(value: unknown): { nonce: string; message: string } {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !("challenge" in value) ||
+    value.challenge === null ||
+    typeof value.challenge !== "object" ||
+    !("nonce" in value.challenge) ||
+    typeof value.challenge.nonce !== "string" ||
+    !("message" in value.challenge) ||
+    typeof value.challenge.message !== "string"
+  ) {
+    throw new Error("Wallet challenge response is invalid");
+  }
+  return { nonce: value.challenge.nonce, message: value.challenge.message };
+}
+
+function parseSessionToken(value: unknown): string {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !("session" in value) ||
+    value.session === null ||
+    typeof value.session !== "object" ||
+    !("token" in value.session) ||
+    typeof value.session.token !== "string"
+  ) {
+    throw new Error("Wallet session response is invalid");
+  }
+  return value.session.token;
 }

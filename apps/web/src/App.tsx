@@ -16,6 +16,7 @@ import {
 
 import {
   connectInjectedWallet,
+  createApiSession,
   getEncryptionKey,
   loadOrCreateIdentity,
   publishEncryptionKey,
@@ -36,6 +37,7 @@ type ConnectedWallet = Readonly<{
   session: WalletSession;
   envelopes: EnvelopeModule;
   identity: RecipientIdentity;
+  apiToken: string;
 }>;
 
 export function App() {
@@ -67,7 +69,7 @@ export function App() {
       }),
       blobs: createHttpInvoiceBlobStore({
         baseUrl: apiUrl,
-        headers: () => ({ "x-quietpact-dev-wallet": connected.session.account }),
+        headers: () => ({ authorization: `Bearer ${connected.apiToken}` }),
       }),
     });
   }, [connected]);
@@ -79,8 +81,9 @@ export function App() {
       const session = await connectInjectedWallet();
       const envelopes = await createEnvelopeModule();
       const identity = loadOrCreateIdentity(session.account, envelopes);
-      await publishEncryptionKey(apiUrl, session.account, identity);
-      setConnected({ session, envelopes, identity });
+      const apiToken = await createApiSession(apiUrl, session);
+      await publishEncryptionKey(apiUrl, session.account, identity, apiToken);
+      setConnected({ session, envelopes, identity, apiToken });
       setResult(null);
     } catch (cause: unknown) {
       setError(messageFor(cause));
@@ -241,7 +244,8 @@ export function App() {
         <span>
           Invoice bodies are encrypted offchain; contract activity remains public.{" "}
           {publicPaymentNotice} Transactions are wallet-signed, but local encryption keys use
-          browser storage and API identity headers remain development-only. No payment is sent.
+          browser storage and authenticated API sessions remain local and in memory. No payment is
+          sent.
         </span>
       </aside>
       <footer>Local prototype · unaudited · no real funds</footer>

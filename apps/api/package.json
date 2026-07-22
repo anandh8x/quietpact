@@ -11,7 +11,8 @@
   "dependencies": {
     "@quietpact/domain": "workspace:*",
     "@quietpact/envelope": "workspace:*",
-    "fastify": "^5.0.0"
+    "fastify": "^5.0.0",
+    "viem": "^2.0.0"
   },
   "devDependencies": {
     "tsx": "^4.0.0"

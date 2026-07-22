@@ -1,15 +1,15 @@
-import { address } from "@quietpact/domain";
-
 import {
   createApp,
   createInMemoryEncryptionKeyRepository,
   createInMemoryInvoiceEnvelopeRepository,
 } from "./app.js";
+import { createInMemoryWalletAuth } from "./wallet-auth.js";
 
 const port = Number(process.env.QUIETPACT_API_PORT ?? 3001);
+const walletAuth = createInMemoryWalletAuth();
 const app = createApp({
-  // Chain actions are wallet-signed; authenticated API sessions replace this header next.
-  authenticate: (request) => address(String(request.headers["x-quietpact-dev-wallet"])),
+  authenticate: (request) => walletAuth.authenticate(request.headers.authorization),
+  walletAuth,
   invoiceEnvelopes: createInMemoryInvoiceEnvelopeRepository(),
   encryptionKeys: createInMemoryEncryptionKeyRepository(),
 });

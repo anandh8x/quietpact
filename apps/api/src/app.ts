@@ -1,6 +1,9 @@
 import { address, type Address } from "@quietpact/domain";
 import type { RecipientKey, SealedEnvelope } from "@quietpact/envelope";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { isHex } from "viem";
+
+import { WalletAuthError, type WalletAuth } from "./wallet-auth.js";
 
 export interface InvoiceEnvelopeRepository {
   put(id: string, envelope: SealedEnvelope): Promise<string>;
@@ -20,15 +23,41 @@ export interface AppOptions {
   readonly authenticate?: (request: FastifyRequest) => Address | Promise<Address>;
   readonly invoiceEnvelopes?: InvoiceEnvelopeRepository;
   readonly encryptionKeys?: EncryptionKeyRepository;
+  readonly walletAuth?: WalletAuth;
 }
 
 export function createApp(options: AppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: true });
 
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof WalletAuthError) {
+      return reply.code(error.statusCode).send({ code: error.code });
+    }
+    return reply.send(error);
+  });
+
   app.get("/health", () => ({
     name: "quietpact-api",
     status: "ok",
   }));
+
+  if (options.walletAuth !== undefined) {
+    const walletAuth = options.walletAuth;
+
+    app.post("/v1/auth/challenges", async (request, reply) => {
+      const actor = parseActorBody(request.body);
+      return actor === null
+        ? reply.code(400).send({ code: "INVALID_ADDRESS" })
+        : { challenge: walletAuth.issueChallenge(actor) };
+    });
+
+    app.post("/v1/auth/sessions", async (request, reply) => {
+      const input = parseSessionBody(request.body);
+      if (input === null) return reply.code(400).send({ code: "INVALID_SESSION_REQUEST" });
+      const session = await walletAuth.createSession(input);
+      return reply.code(201).send({ session });
+    });
+  }
 
   if (options.authenticate !== undefined && options.invoiceEnvelopes !== undefined) {
     const authenticate = options.authenticate;
@@ -167,4 +196,32 @@ function parsePublicKey(body: unknown): string | null {
     return null;
   }
   return body.publicKey;
+}
+
+function parseActorBody(body: unknown): Address | null {
+  if (body === null || typeof body !== "object" || !("address" in body)) return null;
+  return typeof body.address === "string" ? parseAddress(body.address) : null;
+}
+
+function parseSessionBody(body: unknown): {
+  actor: Address;
+  nonce: string;
+  signature: `0x${string}`;
+} | null {
+  if (
+    body === null ||
+    typeof body !== "object" ||
+    !("address" in body) ||
+    typeof body.address !== "string" ||
+    !("nonce" in body) ||
+    typeof body.nonce !== "string" ||
+    !("signature" in body) ||
+    typeof body.signature !== "string" ||
+    !isHex(body.signature) ||
+    body.signature.length !== 132
+  ) {
+    return null;
+  }
+  const actor = parseAddress(body.address);
+  return actor === null ? null : { actor, nonce: body.nonce, signature: body.signature };
 }

@@ -40,6 +40,9 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.10.0
+      viem:
+        specifier: ^2.0.0
+        version: 2.55.4(typescript@5.9.3)
     devDependencies:
       tsx:
         specifier: ^4.0.0

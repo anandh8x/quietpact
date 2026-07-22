@@ -15,3 +15,5 @@ coverage/
 # Private planning documents are kept locally. README.md is public.
 PROMPT.md
 docs/*.md
+
+.kite-passport/

@@ -23,4 +23,11 @@ export default tseslint.config(
     files: ["**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  {
+    files: ["packages/domain/src/**/*.ts"],
+    rules: {
+      // In-memory modules intentionally satisfy the same asynchronous interface as future adapters.
+      "@typescript-eslint/require-await": "off",
+    },
+  },
 );

@@ -10,6 +10,10 @@ export interface InvoiceEnvelopeRepository {
   get(id: string): Promise<SealedEnvelope | null>;
 }
 
+export class InvoiceEnvelopeConflictError extends Error {
+  override readonly name = "InvoiceEnvelopeConflictError";
+}
+
 export interface EncryptionKeyRepository {
   put(key: PublishedEncryptionKey): Promise<void>;
   get(id: Address): Promise<PublishedEncryptionKey | null>;
@@ -32,6 +36,9 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof WalletAuthError) {
       return reply.code(error.statusCode).send({ code: error.code });
+    }
+    if (error instanceof InvoiceEnvelopeConflictError) {
+      return reply.code(409).send({ code: "INVOICE_ENVELOPE_CONFLICT" });
     }
     return reply.send(error);
   });
@@ -147,7 +154,14 @@ export function createInMemoryInvoiceEnvelopeRepository(): InvoiceEnvelopeReposi
 
   return {
     put(id, envelope) {
-      envelopes.set(id.toLowerCase(), structuredClone(envelope));
+      const key = id.toLowerCase();
+      const existing = envelopes.get(key);
+      if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(envelope)) {
+        return Promise.reject(
+          new InvoiceEnvelopeConflictError("Invoice envelope is already stored"),
+        );
+      }
+      envelopes.set(key, structuredClone(envelope));
       return Promise.resolve(`invoice-envelope:${id}`);
     },
     get(id) {

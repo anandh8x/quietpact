@@ -41,11 +41,25 @@ describe("invoice envelope HTTP interface", () => {
       url: `/v1/invoice-envelopes/${invoiceId}`,
       headers: { "x-test-wallet": payer },
     });
+    const conflicting = await app.inject({
+      method: "PUT",
+      url: `/v1/invoice-envelopes/${invoiceId}`,
+      headers: { "x-test-wallet": payee },
+      payload: { envelope: { ...envelope, ciphertext: `${envelope.ciphertext}A` } },
+    });
+    const retrievedAfterConflict = await app.inject({
+      method: "GET",
+      url: `/v1/invoice-envelopes/${invoiceId}`,
+      headers: { "x-test-wallet": payer },
+    });
 
     expect(stored.statusCode).toBe(201);
     expect(stored.json()).toMatchObject({ reference: `invoice-envelope:${invoiceId}` });
     expect(retrieved.statusCode).toBe(200);
     expect(retrieved.json()).toEqual({ envelope });
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.json()).toEqual({ code: "INVOICE_ENVELOPE_CONFLICT" });
+    expect(retrievedAfterConflict.json()).toEqual({ envelope });
     expect(retrieved.body).not.toContain("API_PRIVATE_CANARY_b6e1");
     await app.close();
   });

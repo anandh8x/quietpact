@@ -1,5 +1,5 @@
-import type { Address } from "@quietpact/domain";
-import type { SealedEnvelope } from "@quietpact/envelope";
+import { address, type Address } from "@quietpact/domain";
+import type { RecipientKey, SealedEnvelope } from "@quietpact/envelope";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 export interface InvoiceEnvelopeRepository {
@@ -7,9 +7,19 @@ export interface InvoiceEnvelopeRepository {
   get(id: string): Promise<SealedEnvelope | null>;
 }
 
+export interface EncryptionKeyRepository {
+  put(key: PublishedEncryptionKey): Promise<void>;
+  get(id: Address): Promise<PublishedEncryptionKey | null>;
+}
+
+export interface PublishedEncryptionKey extends RecipientKey {
+  readonly id: Address;
+}
+
 export interface AppOptions {
   readonly authenticate?: (request: FastifyRequest) => Address | Promise<Address>;
   readonly invoiceEnvelopes?: InvoiceEnvelopeRepository;
+  readonly encryptionKeys?: EncryptionKeyRepository;
 }
 
 export function createApp(options: AppOptions = {}): FastifyInstance {
@@ -53,7 +63,54 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
     });
   }
 
+  if (options.authenticate !== undefined && options.encryptionKeys !== undefined) {
+    const authenticate = options.authenticate;
+    const repository = options.encryptionKeys;
+
+    app.put<{ Params: { address: string } }>(
+      "/v1/encryption-keys/:address",
+      async (request, reply) => {
+        const actor = await authenticate(request);
+        const recipient = parseAddress(request.params.address);
+        const publicKey = parsePublicKey(request.body);
+        if (recipient === null || publicKey === null) {
+          return reply.code(400).send({ code: "INVALID_ENCRYPTION_KEY" });
+        }
+        if (actor !== recipient) return reply.code(403).send({ code: "UNAUTHORIZED" });
+
+        await repository.put({ id: recipient, publicKey });
+        return reply.code(204).send();
+      },
+    );
+
+    app.get<{ Params: { address: string } }>(
+      "/v1/encryption-keys/:address",
+      async (request, reply) => {
+        const recipient = parseAddress(request.params.address);
+        if (recipient === null) {
+          return reply.code(400).send({ code: "INVALID_ADDRESS" });
+        }
+        const key = await repository.get(recipient);
+        return key === null ? reply.code(404).send({ code: "NOT_FOUND" }) : { key };
+      },
+    );
+  }
+
   return app;
+}
+
+export function createInMemoryEncryptionKeyRepository(): EncryptionKeyRepository {
+  const keys = new Map<Address, PublishedEncryptionKey>();
+
+  return {
+    put(key) {
+      keys.set(key.id, Object.freeze({ ...key }));
+      return Promise.resolve();
+    },
+    get(id) {
+      return Promise.resolve(keys.get(id) ?? null);
+    },
+  };
 }
 
 export function createInMemoryInvoiceEnvelopeRepository(): InvoiceEnvelopeRepository {
@@ -88,4 +145,26 @@ function parseEnvelope(body: unknown): SealedEnvelope | null {
   }
 
   return envelope as SealedEnvelope;
+}
+
+function parseAddress(value: string): Address | null {
+  try {
+    return address(value);
+  } catch {
+    return null;
+  }
+}
+
+function parsePublicKey(body: unknown): string | null {
+  if (
+    body === null ||
+    typeof body !== "object" ||
+    !("publicKey" in body) ||
+    typeof body.publicKey !== "string" ||
+    body.publicKey.length < 32 ||
+    body.publicKey.length > 128
+  ) {
+    return null;
+  }
+  return body.publicKey;
 }

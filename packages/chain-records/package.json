@@ -15,5 +15,8 @@
     "@quietpact/domain": "workspace:*",
     "@quietpact/invoice": "workspace:*",
     "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@quietpact/envelope": "workspace:*"
   }
 }

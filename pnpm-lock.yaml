@@ -47,6 +47,9 @@ importers:
 
   apps/web:
     dependencies:
+      "@quietpact/chain-records":
+        specifier: workspace:*
+        version: link:../../packages/chain-records
       "@quietpact/domain":
         specifier: workspace:*
         version: link:../../packages/domain
@@ -65,6 +68,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      viem:
+        specifier: ^2.0.0
+        version: 2.55.4(typescript@5.9.3)
       vite:
         specifier: ^7.0.0
         version: 7.3.6(@types/node@24.13.3)(tsx@4.23.1)
@@ -87,6 +93,10 @@ importers:
       viem:
         specifier: ^2.0.0
         version: 2.55.4(typescript@5.9.3)
+    devDependencies:
+      "@quietpact/envelope":
+        specifier: workspace:*
+        version: link:../envelope
 
   packages/domain: {}
 

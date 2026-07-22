@@ -1,0 +1,5 @@
+export default {
+  trailingComma: "all",
+  printWidth: 100,
+  proseWrap: "preserve",
+};

@@ -1,0 +1,17 @@
+node_modules/
+.env
+!.env.example
+out/
+cache/
+broadcast/
+lib/
+dist/
+coverage/
+.vite/
+.turbo/
+*.tsbuildinfo
+.git-local/
+
+# Private planning documents are kept locally. README.md is public.
+PROMPT.md
+docs/*.md

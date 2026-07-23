@@ -75,6 +75,32 @@ The deployment command uses Anvil's publicly known first development key and dep
 
 Local API state is stored under `.quietpact-data/`, which is ignored by Git. SQLite is the zero-setup local adapter, not a production storage claim.
 
+## Security and recovery
+
+The public [threat model](security/threat-model.json) records protected assets, trust boundaries, current controls, residual risks, and release blockers. The generated [CycloneDX 1.6 SBOM](security/sbom.cdx.json) inventories the locked production dependency graph. Refresh and audit it with:
+
+```bash
+pnpm security:sbom
+pnpm security:audit
+```
+
+CI rejects stale SBOM output and any current high or critical production dependency advisory. The latest audit on 2026-07-23 reported no known vulnerabilities.
+
+Create an online, integrity-checked SQLite backup without stopping the API:
+
+```bash
+pnpm data:backup -- .quietpact-data/quietpact.sqlite .quietpact-data/backups/quietpact-backup.sqlite
+```
+
+Restore only while the API is stopped. Keep the old database as a rollback copy, then restore into the now-unused canonical path:
+
+```bash
+mv .quietpact-data/quietpact.sqlite .quietpact-data/quietpact.pre-restore.sqlite
+pnpm data:restore -- .quietpact-data/backups/quietpact-backup.sqlite .quietpact-data/quietpact.sqlite
+```
+
+Both operations verify SQLite integrity, create mode-`0600` output, and refuse to overwrite an existing destination. Backups contain encrypted envelopes, public metadata, public encryption keys, and hashed authentication state. Store them privately even though invoice plaintext and raw session tokens are not present.
+
 ## Arc Testnet
 
 Arc Testnet uses chain ID `5042002`, the public RPC at `https://rpc.testnet.arc.network`, ArcScan at `https://testnet.arcscan.app`, and faucet USDC as its native gas token. Viem and EVM transaction values use 18 decimals for native USDC. QuietPact displays the asset as USDC, never ETH, when configured for Arc.

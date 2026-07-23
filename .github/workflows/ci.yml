@@ -21,6 +21,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm security:audit
+      - run: pnpm security:sbom
+      - run: git diff --exit-code -- security/sbom.cdx.json
       - run: pnpm verify
 
   contracts:

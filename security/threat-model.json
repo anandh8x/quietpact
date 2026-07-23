@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "project": "QuietPact",
+  "reviewedAt": "2026-07-23",
+  "releaseClass": "UNAUDITED_TESTNET_PROTOTYPE",
+  "scope": [
+    "InvoiceRegistry and SealedBidAuction contracts",
+    "Browser-held encryption and bid-opening key material",
+    "Wallet-signed API challenges and bearer sessions",
+    "Encrypted invoice envelopes and SQLite persistence",
+    "Arc Testnet transaction and metadata exposure",
+    "Event projection, RPC dependencies, backups, and operator access"
+  ],
+  "outOfScope": [
+    "Arc native confidential settlement, which is not currently available",
+    "Mainnet funds or production commercial data",
+    "Wallet provider, browser extension, and endpoint-device compromise",
+    "Security guarantees from unaudited third-party infrastructure"
+  ],
+  "assets": [
+    {
+      "id": "ASSET-01",
+      "name": "Invoice plaintext",
+      "classification": "CONFIDENTIAL",
+      "owners": ["payer", "payee", "authorized auditor"]
+    },
+    {
+      "id": "ASSET-02",
+      "name": "Unrevealed bid opening",
+      "classification": "CONFIDENTIAL_UNTIL_REVEAL",
+      "owners": ["bidder"]
+    },
+    {
+      "id": "ASSET-03",
+      "name": "Browser encryption private keys",
+      "classification": "SECRET",
+      "owners": ["wallet user"]
+    },
+    {
+      "id": "ASSET-04",
+      "name": "API bearer sessions",
+      "classification": "SECRET",
+      "owners": ["authenticated wallet user"]
+    },
+    {
+      "id": "ASSET-05",
+      "name": "Contract bonds and testnet balances",
+      "classification": "PUBLIC_ONCHAIN",
+      "owners": ["contract participants"]
+    },
+    {
+      "id": "ASSET-06",
+      "name": "Wallet addresses, workflow timing, and revealed bids",
+      "classification": "PUBLIC_ONCHAIN",
+      "owners": ["public"]
+    }
+  ],
+  "trustBoundaries": [
+    {
+      "id": "BOUNDARY-01",
+      "from": "browser plaintext and local keys",
+      "to": "API encrypted-envelope storage",
+      "rule": "Only authenticated ciphertext and non-secret workflow context may cross."
+    },
+    {
+      "id": "BOUNDARY-02",
+      "from": "browser wallet",
+      "to": "public EVM RPC and Arc Testnet",
+      "rule": "All submitted calldata, transfers, addresses, timing, and revealed bids are public."
+    },
+    {
+      "id": "BOUNDARY-03",
+      "from": "untrusted HTTP client",
+      "to": "QuietPact API and SQLite",
+      "rule": "Requests require validation, bounded content, rate controls, and wallet authorization."
+    },
+    {
+      "id": "BOUNDARY-04",
+      "from": "Arc RPC",
+      "to": "local event projection",
+      "rule": "RPC results are treated as public untrusted input and replayed through a block-hash cursor."
+    },
+    {
+      "id": "BOUNDARY-05",
+      "from": "live SQLite state",
+      "to": "operator backup storage",
+      "rule": "Backups retain encrypted records and sensitive metadata and require restricted storage."
+    }
+  ],
+  "threats": [
+    {
+      "id": "THREAT-01",
+      "title": "Browser key extraction exposes invoice plaintext",
+      "affectedAssets": ["ASSET-01", "ASSET-03"],
+      "controls": [
+        "Invoice bodies are encrypted in the browser for named recipients.",
+        "Plaintext canary tests inspect calldata, logs, contract state, API output, and database projections.",
+        "Private keys are not sent to the API."
+      ],
+      "residualRisk": "HIGH",
+      "status": "ACCEPTED_FOR_LOCAL_PROTOTYPE",
+      "releaseRequirement": "Use an OS-backed or wallet-backed key facility and complete an independent cryptography review before real commercial data."
+    },
+    {
+      "id": "THREAT-02",
+      "title": "Bid opening is lost, copied, or revealed early",
+      "affectedAssets": ["ASSET-02", "ASSET-03"],
+      "controls": [
+        "Bid openings are encrypted with wallet-signature-derived AES-GCM keys.",
+        "The UI supports encrypted export and import before reveal.",
+        "The contract accepts only commitments during the bidding window."
+      ],
+      "residualRisk": "MEDIUM",
+      "status": "ACCEPTED_FOR_TESTNET",
+      "releaseRequirement": "Document recovery expectations and independently review wallet-signature key derivation."
+    },
+    {
+      "id": "THREAT-03",
+      "title": "Authentication challenge replay or bearer-session theft",
+      "affectedAssets": ["ASSET-04"],
+      "controls": [
+        "Challenges are wallet-specific, expire, and are consumed atomically once.",
+        "Only SHA-256 session-token hashes are stored.",
+        "Sessions expire after 30 minutes.",
+        "Authentication endpoints are rate limited per client."
+      ],
+      "residualRisk": "MEDIUM",
+      "status": "MITIGATED_FOR_TESTNET",
+      "releaseRequirement": "Add production transport security, secure browser token storage, revocation controls, and distributed rate limiting before multi-instance operation."
+    },
+    {
+      "id": "THREAT-04",
+      "title": "Users infer privacy for public chain activity",
+      "affectedAssets": ["ASSET-05", "ASSET-06"],
+      "controls": [
+        "The website labels current transfers and revealed bids as public.",
+        "The payment adapter requires an explicit publicity acknowledgement.",
+        "Copy-policy tests reject confidential-settlement claims."
+      ],
+      "residualRisk": "MEDIUM",
+      "status": "MITIGATED_BY_DISCLOSURE",
+      "releaseRequirement": "Keep public-state notices aligned across README, website, demo, and deployed behavior."
+    },
+    {
+      "id": "THREAT-05",
+      "title": "Contract authorization or bond-accounting defect",
+      "affectedAssets": ["ASSET-05"],
+      "controls": [
+        "Foundry unit, fuzz, invariant, replay, access-control, and bond-conservation tests run in CI.",
+        "Contract deployments pin compiler and optimizer settings.",
+        "The Arc Testnet lifecycle smoke gate verifies deployed bytecode and receipts."
+      ],
+      "residualRisk": "HIGH",
+      "status": "RELEASE_BLOCKER_FOR_REAL_VALUE",
+      "releaseRequirement": "Complete an independent smart-contract security review and resolve every critical or high finding before real-value use."
+    },
+    {
+      "id": "THREAT-06",
+      "title": "API or database compromise reveals metadata or active sessions",
+      "affectedAssets": ["ASSET-01", "ASSET-04", "ASSET-06"],
+      "controls": [
+        "The API stores ciphertext rather than invoice plaintext.",
+        "Envelope access requires a wallet-authenticated party listed in the wrapped recipient keys.",
+        "Request bodies are capped at 256 KiB and public errors do not reflect request contents.",
+        "Expired challenges and sessions are pruned."
+      ],
+      "residualRisk": "HIGH",
+      "status": "RELEASE_BLOCKER_FOR_PRODUCTION_DATA",
+      "releaseRequirement": "Deploy authenticated storage with encryption at rest, access logging, secret management, retention limits, and an incident-response procedure."
+    },
+    {
+      "id": "THREAT-07",
+      "title": "RPC failure, rate limiting, or reorganization corrupts the read model",
+      "affectedAssets": ["ASSET-06"],
+      "controls": [
+        "Projection requests combine related events in bounded 500-block ranges.",
+        "The projector stores a block hash with its cursor and rebuilds on mismatch.",
+        "Projection batches apply transactionally and do not overlap."
+      ],
+      "residualRisk": "LOW",
+      "status": "MITIGATED_FOR_TESTNET",
+      "releaseRequirement": "Add provider failover, lag monitoring, and an operator replay command before availability claims."
+    },
+    {
+      "id": "THREAT-08",
+      "title": "Backup loss or exposure prevents recovery or leaks metadata",
+      "affectedAssets": ["ASSET-01", "ASSET-04", "ASSET-06"],
+      "controls": [
+        "SQLite backups use the online backup API for a consistent snapshot.",
+        "Restore validates SQLite integrity and refuses to overwrite an existing target.",
+        "An automated drill verifies recovered encrypted-envelope and authentication state."
+      ],
+      "residualRisk": "MEDIUM",
+      "status": "MITIGATED_FOR_LOCAL_PROTOTYPE",
+      "releaseRequirement": "Store production backups encrypted, restrict access, test retention, and document service-stop and rollback procedures."
+    },
+    {
+      "id": "THREAT-09",
+      "title": "Compromised or vulnerable dependency enters the build",
+      "affectedAssets": ["ASSET-01", "ASSET-02", "ASSET-03", "ASSET-04", "ASSET-05"],
+      "controls": [
+        "The pnpm lockfile is committed and CI installs with frozen versions.",
+        "A CycloneDX SBOM records the dependency graph.",
+        "Production dependency audit runs as a release check."
+      ],
+      "residualRisk": "MEDIUM",
+      "status": "MITIGATED_FOR_TESTNET",
+      "releaseRequirement": "Review audit findings and SBOM changes for each release and block unresolved critical or high production vulnerabilities."
+    }
+  ],
+  "releaseBlockers": [
+    "Independent smart-contract and application security review",
+    "OS-backed or wallet-backed browser key storage",
+    "Production transport security and secret management",
+    "Encrypted managed storage and encrypted offsite backups",
+    "Incident response, rollback, retention, and access-review procedures",
+    "Resolution of all critical and high production dependency findings"
+  ]
+}

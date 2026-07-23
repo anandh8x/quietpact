@@ -525,11 +525,12 @@ export function createViemInvoiceProjector(options: {
   readonly publicClient: PublicClient;
   readonly repository: InvoiceProjectionRepository;
   readonly startBlock?: bigint;
+  readonly maxBlockRange?: bigint;
 }): InvoiceProjector {
   return {
     async sync() {
-      const throughBlockData = await options.publicClient.getBlock({ blockTag: "latest" });
-      const throughBlock = throughBlockData.number;
+      const latestBlockData = await options.publicClient.getBlock({ blockTag: "latest" });
+      const latestBlock = latestBlockData.number;
       const cursor = await options.repository.cursor();
       let reset = false;
       if (cursor !== null) {
@@ -544,35 +545,31 @@ export function createViemInvoiceProjector(options: {
       }
       const fromBlock =
         cursor === null || reset ? (options.startBlock ?? 0n) : cursor.blockNumber + 1n;
-      if (fromBlock > throughBlock) {
-        return { fromBlock: null, throughBlock, events: 0 };
+      if (fromBlock > latestBlock) {
+        return { fromBlock: null, throughBlock: latestBlock, events: 0 };
       }
 
-      const [createdLogs, stateLogs, paymentLogs] = await Promise.all([
-        options.publicClient.getLogs({
-          address: options.registry,
-          event: invoiceCreatedEvent,
-          fromBlock,
-          toBlock: throughBlock,
-        }),
-        options.publicClient.getLogs({
-          address: options.registry,
-          event: invoiceStateChangedEvent,
-          fromBlock,
-          toBlock: throughBlock,
-        }),
-        options.publicClient.getLogs({
-          address: options.registry,
-          event: publicPaymentReferencedEvent,
-          fromBlock,
-          toBlock: throughBlock,
-        }),
-      ]);
-      const events: InvoiceProjectionEvent[] = [
-        ...createdLogs.map((log) => {
+      const maxBlockRange = options.maxBlockRange ?? 500n;
+      if (maxBlockRange <= 0n) throw new Error("Invoice projector block range must be positive");
+      const batchEnd = fromBlock + maxBlockRange - 1n;
+      const throughBlock = batchEnd < latestBlock ? batchEnd : latestBlock;
+      const throughBlockData =
+        throughBlock === latestBlock
+          ? latestBlockData
+          : await options.publicClient.getBlock({ blockNumber: throughBlock });
+      const logs = await options.publicClient.getLogs({
+        address: options.registry,
+        events: [invoiceCreatedEvent, invoiceStateChangedEvent, publicPaymentReferencedEvent],
+        strict: true,
+        fromBlock,
+        toBlock: throughBlock,
+      });
+      const events: InvoiceProjectionEvent[] = [];
+      for (const log of logs) {
+        if (log.eventName === "InvoiceCreated") {
           const location = requireLogLocation(log);
           const args = requireCreatedArgs(log.args);
-          return {
+          events.push({
             type: "created" as const,
             invoice: {
               id: args.invoiceId,
@@ -587,33 +584,32 @@ export function createViemInvoiceProjector(options: {
               latestBlock: location.blockNumber,
             },
             logIndex: location.logIndex,
-          };
-        }),
-        ...stateLogs.map((log) => {
+          });
+        } else if (log.eventName === "InvoiceStateChanged") {
           const location = requireLogLocation(log);
           const args = requireStateChangedArgs(log.args);
-          return {
+          events.push({
             type: "stateChanged" as const,
             id: args.invoiceId,
             state: invoiceStateFromIndex(args.state),
             transactionHash: location.transactionHash,
             blockNumber: location.blockNumber,
             logIndex: location.logIndex,
-          };
-        }),
-        ...paymentLogs.map((log) => {
+          });
+        } else if (log.eventName === "PublicPaymentReferenced") {
           const location = requireLogLocation(log);
           const args = requirePaymentReferencedArgs(log.args);
-          return {
+          events.push({
             type: "paymentReferenced" as const,
             id: args.invoiceId,
             reference: args.transactionReference,
             transactionHash: location.transactionHash,
             blockNumber: location.blockNumber,
             logIndex: location.logIndex,
-          };
-        }),
-      ].sort(compareProjectionEvents);
+          });
+        }
+      }
+      events.sort(compareProjectionEvents);
 
       await options.repository.apply({
         events,

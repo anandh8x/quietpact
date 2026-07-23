@@ -47,7 +47,7 @@ const syncProjection = async () => {
     projectorRunning = false;
   }
 };
-const projectorTimer = setInterval(() => void syncProjection(), 1_000);
+const projectorTimer = setInterval(() => void syncProjection(), 10_000);
 projectorTimer.unref();
 app.addHook("onClose", () => {
   clearInterval(projectorTimer);

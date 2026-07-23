@@ -4,12 +4,13 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
-  defineChain,
   http,
   type EIP1193Provider,
   type PublicClient,
   type WalletClient,
 } from "viem";
+
+import { resolveQuietPactNetwork, type QuietPactNetwork } from "./network.js";
 
 declare global {
   interface Window {
@@ -22,6 +23,7 @@ export interface WalletSession {
   readonly chainId: bigint;
   readonly registry: Address;
   readonly auction: Address;
+  readonly network: QuietPactNetwork;
   readonly publicClient: PublicClient;
   readonly walletClient: WalletClient;
 }
@@ -35,16 +37,15 @@ export async function connectInjectedWallet(): Promise<WalletSession> {
     throw new Error("No injected EVM wallet found. Install a browser wallet first.");
   }
 
-  const expectedChainId = parseChainId(import.meta.env.VITE_QUIETPACT_CHAIN_ID ?? "31337");
   const rpcUrl = import.meta.env.VITE_QUIETPACT_RPC_URL ?? "http://127.0.0.1:8545";
+  const network = resolveQuietPactNetwork({
+    chainId: import.meta.env.VITE_QUIETPACT_CHAIN_ID ?? "31337",
+    rpcUrl,
+  });
+  const expectedChainId = network.chainId;
   const registry = address(import.meta.env.VITE_QUIETPACT_REGISTRY_ADDRESS ?? defaultLocalRegistry);
   const auction = address(import.meta.env.VITE_QUIETPACT_AUCTION_ADDRESS ?? defaultLocalAuction);
-  const chain = defineChain({
-    id: Number(expectedChainId),
-    name: "QuietPact local chain",
-    nativeCurrency: { name: "Local Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: { default: { http: [rpcUrl] } },
-  });
+  const chain = network.chain;
   const connector = createWalletClient({ chain, transport: custom(provider) });
   const [walletAddress] = await connector.requestAddresses();
   if (walletAddress === undefined) throw new Error("The wallet did not provide an account");
@@ -58,7 +59,7 @@ export async function connectInjectedWallet(): Promise<WalletSession> {
     }
     actualChainId = BigInt(await connector.getChainId());
     if (actualChainId !== expectedChainId) {
-      throw new Error(`Wallet could not switch to local chain ${expectedChainId}`);
+      throw new Error(`Wallet could not switch to ${network.name} (${expectedChainId})`);
     }
   }
 
@@ -67,6 +68,7 @@ export async function connectInjectedWallet(): Promise<WalletSession> {
     chainId: expectedChainId,
     registry,
     auction,
+    network,
     publicClient: createPublicClient({ chain, transport: http(rpcUrl) }),
     walletClient: createWalletClient({
       account: walletAddress,
@@ -177,16 +179,6 @@ export async function getEncryptionKey(baseUrl: string, account: Address): Promi
     throw new Error("Encryption-key lookup returned an invalid response");
   }
   return { id: account, publicKey: result.key.publicKey };
-}
-
-function parseChainId(value: string): bigint {
-  try {
-    const parsed = BigInt(value);
-    if (parsed <= 0n || parsed > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error();
-    return parsed;
-  } catch {
-    throw new Error("VITE_QUIETPACT_CHAIN_ID must be a positive integer");
-  }
 }
 
 function trimSlash(value: string): string {

@@ -4,7 +4,7 @@
 
 QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted invoice coordination. It is designed to integrate with Arc's native privacy capabilities when they become publicly available.
 
-> **Prototype privacy notice:** Invoice records can be encrypted offchain, and sealed bids remain hidden until reveal. Current prototype payments are public onchain. This checkpoint runs locally and does not yet provide Arc testnet deployment or confidential USDC settlement.
+> **Prototype privacy notice:** Invoice records can be encrypted offchain, and sealed bids remain hidden until reveal. Current prototype payments are public onchain. Arc Privacy is documented but not currently available, so this project does not claim confidential USDC settlement.
 
 ## What we are building
 
@@ -17,6 +17,8 @@ QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted inv
 ## Current status
 
 Phases 0–7 are complete: the workspace, workflow state machines, Solidity contracts, authenticated multi-recipient envelope encryption, encrypted invoice slice, sealed-bid procurement slice, explicit payment adapters, and product-quality website are implemented and tested locally.
+
+Phase 8 is in progress. QuietPact now has a tested Arc Testnet runtime target, a read-only network readiness check, browser-wallet deployment tooling that generates deployment evidence, and network-aware USDC labels. Contracts have not yet been deployed to Arc Testnet. The local Anvil loop remains the default until the testnet deployment and lifecycle smoke gate are complete.
 
 The browser connects to an injected EVM wallet, signs a one-time API authentication challenge, publishes its encryption public key, and uses the Viem chain-record adapter to register, read, and approve invoice records through the Solidity `InvoiceRegistry`. The API verifies the wallet signature, rejects challenge replay, and protects encrypted-envelope access with a short-lived bearer session. Encrypted envelopes, public encryption keys, one-time challenges, hashed session tokens, and the public contract-event projection persist in a local SQLite database across API restarts; raw bearer tokens are never stored.
 
@@ -71,9 +73,33 @@ The deployment command uses Anvil's publicly known first development key and dep
 
 Local API state is stored under `.quietpact-data/`, which is ignored by Git. SQLite is the zero-setup local adapter, not a production storage claim.
 
+## Arc Testnet
+
+Arc Testnet uses chain ID `5042002`, the public RPC at `https://rpc.testnet.arc.network`, ArcScan at `https://testnet.arcscan.app`, and faucet USDC as its native gas token. Viem and EVM transaction values use 18 decimals for native USDC. QuietPact displays the asset as USDC, never ETH, when configured for Arc.
+
+Run the read-only readiness check:
+
+```bash
+pnpm arc:check
+```
+
+When a dedicated testnet wallet has faucet USDC, deploy through a browser wallet without placing a private key in an environment variable:
+
+```bash
+pnpm arc:deploy
+```
+
+The command refuses any RPC that is not chain `5042002`, builds with the pinned Foundry settings, waits for both receipts, verifies deployed bytecode, and generates `deployments/arc-testnet.json` plus `deployments/arc-testnet.env`. After deployment, run the local website and API against Arc Testnet with:
+
+```bash
+pnpm arc:dev
+```
+
+Testnet USDC has no real-world value. Use a dedicated testnet wallet. Do not use a wallet that holds real assets. The current Arc documentation explicitly marks Arc Privacy as unavailable roadmap functionality, so all QuietPact contract calls, transfers, wallet addresses, timing, and revealed bids remain public.
+
 ## Privacy boundary
 
-QuietPact does not describe ordinary Arc transfers as private. A commitment proves data integrity, not payment of a hidden amount. Native confidential-settlement language will remain disabled until an Arc testnet implementation is available and independently verified end to end.
+QuietPact does not describe ordinary Arc transfers as private. A commitment proves data integrity, not payment of a hidden amount. Native confidential-settlement language will remain disabled until an Arc testnet implementation is available and independently verified end to end. See the official [Arc privacy status](https://docs.arc.io/arc/concepts/opt-in-privacy) and [Arc Testnet connection details](https://docs.arc.io/arc/references/connect-to-arc).
 
 ## License
 

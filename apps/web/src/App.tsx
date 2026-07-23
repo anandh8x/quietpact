@@ -50,8 +50,13 @@ import {
   publishEncryptionKey,
   type WalletSession,
 } from "./wallet.js";
+import { resolveQuietPactNetwork } from "./network.js";
 
 const apiUrl = import.meta.env.VITE_QUIETPACT_API_URL ?? "/api";
+const configuredNetwork = resolveQuietPactNetwork({
+  chainId: import.meta.env.VITE_QUIETPACT_CHAIN_ID ?? "31337",
+  rpcUrl: import.meta.env.VITE_QUIETPACT_RPC_URL ?? "http://127.0.0.1:8545",
+});
 const publicPaymentNotice = "Payments are public onchain.";
 
 type DemoResult = Readonly<{
@@ -346,7 +351,7 @@ export function App() {
   const viewAuction = async () => {
     await runAuctionAction(async () => {
       await refreshAuction();
-      setAuctionMessage("Auction state refreshed from the local chain.");
+      setAuctionMessage(`Auction state refreshed from ${network.name}.`);
     });
   };
 
@@ -501,6 +506,8 @@ export function App() {
   };
 
   const phase = auctionSnapshot?.view.phase;
+  const network = connected?.session.network ?? configuredNetwork;
+  const isArcTestnet = network.mode === "ARC_TESTNET";
 
   return (
     <>
@@ -515,7 +522,7 @@ export function App() {
           <a href="#purpose">Why QuietPact</a>
           <a href="#workflows">Workflows</a>
           <a href="#privacy-boundary">Privacy boundary</a>
-          <a href="#local-prototype">Local prototype</a>
+          <a href="#local-prototype">{isArcTestnet ? "Arc testnet" : "Local prototype"}</a>
         </nav>
         <div className="wallet-cluster">
           <span
@@ -523,7 +530,7 @@ export function App() {
             aria-hidden="true"
           />
           <span className="network-label">
-            {actor === null ? "Disconnected" : "Local Anvil · 31337"}
+            {actor === null ? "Disconnected" : network.walletLabel}
           </span>
           <button className="wallet" disabled={busy} type="button" onClick={() => void connect()}>
             {actor === null ? "Connect wallet" : shortAddress(actor)}
@@ -534,22 +541,28 @@ export function App() {
       <main id="main-content">
         <section className="hero" id="top" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">Arc-ready · local prototype</p>
+            <p className="eyebrow">
+              {isArcTestnet ? "Arc Testnet · public prototype" : "Arc-ready · local prototype"}
+            </p>
             <h1 id="hero-title">Commercial privacy, without the theatre.</h1>
             <p className="lede">
               Encrypted invoices. Sealed bids. Public payments labelled exactly as they are.
             </p>
             <div className="hero-actions">
               <a className="button-link primary" href="#workflows">
-                Open local workspace <span aria-hidden="true">→</span>
+                Open {isArcTestnet ? "testnet" : "local"} workspace{" "}
+                <span aria-hidden="true">→</span>
               </a>
               <a className="button-link secondary" href="#privacy-boundary">
                 See the privacy boundary <span aria-hidden="true">→</span>
               </a>
             </div>
-            <div className="chain-marker" aria-label="Local Anvil network, chain ID 31337">
-              <span>Local Anvil / Chain ID</span>
-              <strong>31337</strong>
+            <div
+              className="chain-marker"
+              aria-label={`${network.name} network, chain ID ${network.chainId}`}
+            >
+              <span>{network.name} / Chain ID</span>
+              <strong>{network.chainId.toString()}</strong>
             </div>
           </div>
 
@@ -576,8 +589,8 @@ export function App() {
               tone="public"
             />
             <div className="ledger-foot">
-              <span>● {actor === null ? "Wallet not connected" : "Connected to local chain"}</span>
-              <span>Local Anvil · Chain 31337</span>
+              <span>● {actor === null ? "Wallet not connected" : network.connectedLabel}</span>
+              <span>{network.statusLabel}</span>
             </div>
           </div>
         </section>
@@ -656,11 +669,13 @@ export function App() {
         </section>
 
         <section className="workspace-intro" id="workflows" aria-labelledby="workspace-title">
-          <p className="eyebrow">Working local prototype</p>
+          <p className="eyebrow">
+            {isArcTestnet ? "Working Arc testnet prototype" : "Working local prototype"}
+          </p>
           <h2 id="workspace-title">Two workflows. One honest boundary.</h2>
           <p>
-            Every control below talks to the local contracts and API. Connect an injected wallet on
-            Anvil before starting.
+            Every control below talks to the configured contracts and API. Connect an injected
+            wallet on {network.name} before starting.
           </p>
         </section>
 
@@ -793,7 +808,7 @@ export function App() {
                     This transfer is visible onchain. Only its confirmed hash is attached.
                   </p>
                   <label>
-                    Amount to send <span className="field-note">local ETH</span>
+                    Amount to send <span className="field-note">{network.paymentUnit}</span>
                     <input
                       required
                       inputMode="decimal"
@@ -827,9 +842,20 @@ export function App() {
                 aria-live="polite"
               >
                 <strong>{paymentResult.label}</strong>
-                <span>{formatEther(paymentResult.amount)} local ETH</span>
+                <span>
+                  {formatEther(paymentResult.amount)} {network.paymentUnit}
+                </span>
                 <span>{paymentResult.classification}</span>
                 <code>{paymentResult.reference}</code>
+                {paymentResult.kind === "PUBLIC_CHAIN" && network.explorerUrl !== null ? (
+                  <a
+                    href={`${network.explorerUrl}/tx/${paymentResult.reference}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    View transaction on ArcScan ↗
+                  </a>
+                ) : null}
               </div>
             ) : null}
 
@@ -856,7 +882,7 @@ export function App() {
             <div className="auction-console-title">
               <div>
                 <p className="eyebrow">Sealed-bid auction</p>
-                <h3>Local procurement console</h3>
+                <h3>{network.name} procurement console</h3>
               </div>
               <button
                 disabled={busy || actor === null}
@@ -907,7 +933,7 @@ export function App() {
                     />
                   </label>
                   <label>
-                    Fixed bond (local ETH)
+                    Fixed bond ({network.paymentUnit})
                     <input
                       required
                       inputMode="decimal"
@@ -995,7 +1021,7 @@ export function App() {
             </div>
 
             {auctionSnapshot ? (
-              <AuctionStatus snapshot={auctionSnapshot} />
+              <AuctionStatus snapshot={auctionSnapshot} paymentUnit={network.paymentUnit} />
             ) : (
               <div className="empty-state dark-empty">
                 Paste an auction ID and refresh to load its public state.
@@ -1085,7 +1111,10 @@ export function App() {
             amounts are hidden only before reveal and become public after reveal.{" "}
             {publicPaymentNotice}
             Browser storage holds prototype encryption keys; bid openings use wallet-unlocked
-            AES-GCM encryption. Local-chain ETH has no real value.
+            AES-GCM encryption.{" "}
+            {isArcTestnet
+              ? "Arc Testnet uses faucet USDC with no real-world value."
+              : "Local-chain ETH has no real value."}
           </span>
         </aside>
 
@@ -1094,8 +1123,14 @@ export function App() {
             ⌑
           </div>
           <div>
-            <h2 id="cta-title">Run the local prototype</h2>
-            <p>Unaudited. No real funds. Not an Arc testnet deployment.</p>
+            <h2 id="cta-title">
+              {isArcTestnet ? "Use the Arc testnet prototype" : "Run the local prototype"}
+            </h2>
+            <p>
+              {isArcTestnet
+                ? "Unaudited. Testnet only. Arc Privacy is not currently available."
+                : "Unaudited. No real funds. Not an Arc testnet deployment."}
+            </p>
           </div>
           <a className="button-link moss" href="#workflows">
             Open workspace <span aria-hidden="true">→</span>
@@ -1108,7 +1143,7 @@ export function App() {
 
         <footer>
           <span>QuietPact</span>
-          <span>Arc-ready local prototype</span>
+          <span>{isArcTestnet ? "Arc testnet prototype" : "Arc-ready local prototype"}</span>
         </footer>
       </main>
 
@@ -1190,7 +1225,13 @@ function BoundaryItem({
   );
 }
 
-function AuctionStatus({ snapshot }: { readonly snapshot: AuctionSnapshot }) {
+function AuctionStatus({
+  snapshot,
+  paymentUnit,
+}: {
+  readonly snapshot: AuctionSnapshot;
+  readonly paymentUnit: string;
+}) {
   const { view, bid, credit } = snapshot;
   return (
     <div className="auction-status" aria-live="polite">
@@ -1204,11 +1245,15 @@ function AuctionStatus({ snapshot }: { readonly snapshot: AuctionSnapshot }) {
       </div>
       <div>
         <span>Bond</span>
-        <strong>{formatEther(view.bond)} local ETH</strong>
+        <strong>
+          {formatEther(view.bond)} {paymentUnit}
+        </strong>
       </div>
       <div>
         <span>Your credit</span>
-        <strong>{formatEther(credit)} local ETH</strong>
+        <strong>
+          {formatEther(credit)} {paymentUnit}
+        </strong>
       </div>
       <div>
         <span>Commit opens</span>

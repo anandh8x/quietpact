@@ -3,6 +3,7 @@ import type { RecipientKey, SealedEnvelope } from "@quietpact/envelope";
 import type { InvoiceProjectionRepository } from "@quietpact/chain-records";
 import Fastify, {
   type FastifyInstance,
+  type FastifyReply,
   type FastifyRequest,
   type FastifyServerOptions,
 } from "fastify";
@@ -35,19 +36,53 @@ export interface AppOptions {
   readonly walletAuth?: WalletAuth;
   readonly invoiceProjection?: InvoiceProjectionRepository;
   readonly logger?: FastifyServerOptions["logger"];
+  readonly bodyLimitBytes?: number;
+  readonly authRateLimit?: AuthRateLimitOptions;
+}
+
+export interface AuthRateLimitOptions {
+  readonly maxRequests: number;
+  readonly windowMs: number;
+  readonly now?: () => number;
 }
 
 export function createApp(options: AppOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? true });
+  const bodyLimit = options.bodyLimitBytes ?? 256 * 1024;
+  if (!Number.isSafeInteger(bodyLimit) || bodyLimit <= 0) {
+    throw new Error("API body limit must be a positive integer");
+  }
+  const app = Fastify({ bodyLimit, logger: options.logger ?? true });
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof WalletAuthError) {
       return reply.code(error.statusCode).send({ code: error.code });
     }
     if (error instanceof InvoiceEnvelopeConflictError) {
       return reply.code(409).send({ code: "INVOICE_ENVELOPE_CONFLICT" });
     }
-    return reply.send(error);
+    if (
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "FST_ERR_CTP_BODY_TOO_LARGE"
+    ) {
+      return reply.code(413).send({ code: "PAYLOAD_TOO_LARGE" });
+    }
+    const statusCode =
+      error !== null &&
+      typeof error === "object" &&
+      "statusCode" in error &&
+      typeof error.statusCode === "number"
+        ? error.statusCode
+        : null;
+    if (statusCode !== null && statusCode >= 400 && statusCode < 500) {
+      return reply.code(statusCode).send({ code: "INVALID_REQUEST" });
+    }
+    request.log.error(
+      { errorName: error instanceof Error ? error.name : "UnknownError" },
+      "request failed",
+    );
+    return reply.code(500).send({ code: "INTERNAL_ERROR" });
   });
 
   app.get("/health", () => ({
@@ -57,15 +92,21 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
 
   if (options.walletAuth !== undefined) {
     const walletAuth = options.walletAuth;
+    const enforceAuthRateLimit = createRateLimitHook(
+      options.authRateLimit ?? {
+        maxRequests: 20,
+        windowMs: 60_000,
+      },
+    );
 
-    app.post("/v1/auth/challenges", async (request, reply) => {
+    app.post("/v1/auth/challenges", { onRequest: enforceAuthRateLimit }, async (request, reply) => {
       const actor = parseActorBody(request.body);
       return actor === null
         ? reply.code(400).send({ code: "INVALID_ADDRESS" })
         : { challenge: walletAuth.issueChallenge(actor) };
     });
 
-    app.post("/v1/auth/sessions", async (request, reply) => {
+    app.post("/v1/auth/sessions", { onRequest: enforceAuthRateLimit }, async (request, reply) => {
       const input = parseSessionBody(request.body);
       if (input === null) return reply.code(400).send({ code: "INVALID_SESSION_REQUEST" });
       const session = await walletAuth.createSession(input);
@@ -152,6 +193,50 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   }
 
   return app;
+}
+
+function createRateLimitHook(options: AuthRateLimitOptions) {
+  if (!Number.isSafeInteger(options.maxRequests) || options.maxRequests <= 0) {
+    throw new Error("Authentication rate limit must be a positive integer");
+  }
+  if (!Number.isSafeInteger(options.windowMs) || options.windowMs <= 0) {
+    throw new Error("Authentication rate-limit window must be a positive integer");
+  }
+  const now = options.now ?? Date.now;
+  const buckets = new Map<string, { count: number; resetsAt: number }>();
+
+  return (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
+    const timestamp = now();
+    let bucket = buckets.get(request.ip);
+    if (bucket === undefined || timestamp >= bucket.resetsAt) {
+      if (buckets.size >= 10_000) {
+        for (const [key, candidate] of buckets) {
+          if (timestamp >= candidate.resetsAt) buckets.delete(key);
+        }
+        if (buckets.size >= 10_000) {
+          const oldestKey = buckets.keys().next().value;
+          if (oldestKey !== undefined) buckets.delete(oldestKey);
+        }
+      }
+      bucket = { count: 0, resetsAt: timestamp + options.windowMs };
+      buckets.set(request.ip, bucket);
+    }
+
+    const remaining = Math.max(0, options.maxRequests - bucket.count - 1);
+    reply.header("x-ratelimit-limit", String(options.maxRequests));
+    reply.header("x-ratelimit-remaining", String(remaining));
+    reply.header("x-ratelimit-reset", String(Math.ceil(bucket.resetsAt / 1000)));
+    if (bucket.count >= options.maxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetsAt - timestamp) / 1000));
+      void reply
+        .header("retry-after", String(retryAfterSeconds))
+        .code(429)
+        .send({ code: "RATE_LIMITED" });
+      return;
+    }
+    bucket.count += 1;
+    done();
+  };
 }
 
 export function createInMemoryEncryptionKeyRepository(): EncryptionKeyRepository {

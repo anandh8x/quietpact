@@ -16,11 +16,13 @@ QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted inv
 
 ## Current status
 
-Phases 0–8 are complete: the workspace, workflow state machines, Solidity contracts, authenticated multi-recipient envelope encryption, encrypted invoice slice, sealed-bid procurement slice, explicit payment adapters, product-quality website, and reproducible Arc Testnet deployment are implemented and tested.
+Phases 0–8 are complete: the workspace, workflow state machines, Solidity contracts, authenticated multi-recipient envelope encryption, encrypted invoice slice, sealed-bid procurement slice, explicit payment adapters, product-quality website, and reproducible Arc Testnet deployment are implemented and tested. Phase 9 hardening is underway.
 
 `InvoiceRegistry` and `SealedBidAuction` are live on Arc Testnet. A real-chain smoke run created, approved, and publicly referenced an invoice, then created an auction, committed and revealed a bid, finalized its winner, and withdrew its bond credit. Every recorded receipt succeeded. The public evidence is committed under `deployments/`; the local Anvil loop remains the default development environment.
 
 The browser connects to an injected EVM wallet, signs a one-time API authentication challenge, publishes its encryption public key, and uses the Viem chain-record adapter to register, read, and approve invoice records through the Solidity `InvoiceRegistry`. The API verifies the wallet signature, rejects challenge replay, and protects encrypted-envelope access with a short-lived bearer session. Encrypted envelopes, public encryption keys, one-time challenges, hashed session tokens, and the public contract-event projection persist in a local SQLite database across API restarts; raw bearer tokens are never stored.
+
+The API rejects request bodies larger than 256 KiB and limits wallet authentication attempts per client to 20 requests per minute. Rate-limit responses include a retry window, and oversized or unexpected failures return stable public error codes without reflecting request contents.
 
 The Phase 4 leakage test deploys the contract to Anvil and exercises encrypted creation, payer reopening, wallet-signed approval, event projection, API retrieval, and safe replay after a local chain reset. It verifies that a plaintext canary is absent from transaction input, receipt logs, contract state, API logs, public database rows, and the serialized encrypted envelope.
 

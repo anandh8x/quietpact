@@ -6,6 +6,15 @@ import { createInMemoryWalletAuth } from "../src/wallet-auth.js";
 const actor = "0x1000000000000000000000000000000000000001";
 
 describe("API abuse resistance", () => {
+  it("supports a trusted hosting path prefix", async () => {
+    const app = createApp({ requestPathPrefix: "/api", logger: false });
+    const response = await app.inject({ method: "GET", url: "/api/health" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ name: "quietpact-api", status: "ok" });
+    await app.close();
+  });
+
   it("rate limits wallet authentication requests per client", async () => {
     let clock = Date.parse("2026-07-23T12:00:00.000Z");
     const app = createApp({

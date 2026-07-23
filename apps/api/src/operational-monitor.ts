@@ -14,11 +14,11 @@ export interface SafeReadinessReport {
 export interface OperationalMonitor {
   projectorSucceeded(): void;
   projectorFailed(): void;
-  snapshot(): SafeReadinessReport;
+  snapshot(): Promise<SafeReadinessReport>;
 }
 
 export function createOperationalMonitor(options: {
-  readonly checkDatabase: () => void;
+  readonly checkDatabase: () => void | Promise<void>;
   readonly databaseSchemaVersion: number;
   readonly projectorDisabled: boolean;
   readonly now?: () => number;
@@ -36,11 +36,11 @@ export function createOperationalMonitor(options: {
     projectorFailed() {
       consecutiveProjectorFailures += 1;
     },
-    snapshot() {
+    async snapshot() {
       const timestamp = now();
       let database: SafeReadinessReport["database"] = "ok";
       try {
-        options.checkDatabase();
+        await options.checkDatabase();
       } catch {
         database = "degraded";
       }

@@ -35,7 +35,7 @@ describe("SQLite persistence", () => {
     const database = openQuietPactDatabase(databasePath);
 
     expect(database.schemaVersion).toBe(QUIETPACT_DATABASE_SCHEMA_VERSION);
-    expect(() => database.checkHealth()).not.toThrow();
+    await expect(database.checkHealth()).resolves.toBeUndefined();
     database.close();
 
     const inspection = new DatabaseSync(databasePath);
@@ -137,7 +137,7 @@ describe("SQLite persistence", () => {
   it("survives restarts with one-time challenges and hashed session tokens", async () => {
     const databasePath = await temporaryDatabasePath();
     const first = openQuietPactDatabase(databasePath);
-    const challenge = createWalletAuth(first.walletAuth).issueChallenge(actor);
+    const challenge = await createWalletAuth(first.walletAuth).issueChallenge(actor);
     first.close();
 
     const signature = await account.signMessage({ message: challenge.message });
@@ -158,7 +158,7 @@ describe("SQLite persistence", () => {
 
     const third = openQuietPactDatabase(databasePath);
     const restartedAuth = createWalletAuth(third.walletAuth);
-    expect(restartedAuth.authenticate(`Bearer ${session.token}`)).toBe(actor);
+    await expect(restartedAuth.authenticate(`Bearer ${session.token}`)).resolves.toBe(actor);
     await expect(
       restartedAuth.createSession({ actor, nonce: challenge.nonce, signature }),
     ).rejects.toMatchObject({ code: "CHALLENGE_NOT_FOUND" });

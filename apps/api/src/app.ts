@@ -40,6 +40,8 @@ export interface AppOptions {
   readonly bodyLimitBytes?: number;
   readonly authRateLimit?: AuthRateLimitOptions;
   readonly readiness?: () => SafeReadinessReport | Promise<SafeReadinessReport>;
+  readonly refreshInvoiceProjection?: () => void | Promise<void>;
+  readonly requestPathPrefix?: string;
 }
 
 export interface AuthRateLimitOptions {
@@ -53,7 +55,25 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   if (!Number.isSafeInteger(bodyLimit) || bodyLimit <= 0) {
     throw new Error("API body limit must be a positive integer");
   }
-  const app = Fastify({ bodyLimit, logger: options.logger ?? true });
+  const requestPathPrefix = options.requestPathPrefix ?? "";
+  if (requestPathPrefix !== "" && !/^\/[A-Za-z0-9/_-]+$/.test(requestPathPrefix)) {
+    throw new Error("API request path prefix is invalid");
+  }
+  const app =
+    requestPathPrefix === ""
+      ? Fastify({ bodyLimit, logger: options.logger ?? true })
+      : Fastify({
+          bodyLimit,
+          logger: options.logger ?? true,
+          rewriteUrl(request) {
+            const url = request.url ?? "/";
+            return url === requestPathPrefix
+              ? "/"
+              : url.startsWith(`${requestPathPrefix}/`)
+                ? url.slice(requestPathPrefix.length)
+                : url;
+          },
+        });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof WalletAuthError) {
@@ -113,7 +133,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
       const actor = parseActorBody(request.body);
       return actor === null
         ? reply.code(400).send({ code: "INVALID_ADDRESS" })
-        : { challenge: walletAuth.issueChallenge(actor) };
+        : { challenge: await walletAuth.issueChallenge(actor) };
     });
 
     app.post("/v1/auth/sessions", { onRequest: enforceAuthRateLimit }, async (request, reply) => {
@@ -129,6 +149,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
     app.get<{ Params: { id: string } }>("/v1/invoice-records/:id", async (request, reply) => {
       const id = parseHex32(request.params.id);
       if (id === null) return reply.code(400).send({ code: "INVALID_INVOICE_ID" });
+      await options.refreshInvoiceProjection?.();
       const invoice = await projection.view(id);
       return invoice === null
         ? reply.code(404).send({ code: "NOT_FOUND" })

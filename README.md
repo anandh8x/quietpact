@@ -23,7 +23,7 @@ QuietPact `v0.1.0-testnet` is a working testnet prototype with:
 - Wallet-authenticated invoice creation, retrieval, approval, and public payment references.
 - Sealed-bid auction creation, encrypted opening backups, reveal, finalization, and bond withdrawal.
 - Explicitly separate simulated payments and confirmed public-chain transfers.
-- Persistent SQLite state, transactional migrations, backup and restore tooling, rate limits, readiness monitoring, and a reproducible SBOM.
+- Durable Turso state for hosting, zero-setup local SQLite, transactional migrations, local backup and restore tooling, rate limits, readiness monitoring, and a reproducible SBOM.
 - Responsive desktop and mobile workflows with automated accessibility and real-chain lifecycle tests.
 
 The recorded Arc smoke run created, approved, and publicly referenced an invoice, then created an auction, committed and revealed a bid, finalized its winner, and withdrew its bond credit. Every recorded receipt succeeded. Public deployment and smoke evidence is committed under `deployments/`.
@@ -78,6 +78,36 @@ The web app runs at `http://localhost:5173`; the API health endpoint runs at `ht
 The deployment command uses Anvil's publicly known first development key and deploys `InvoiceRegistry` followed by `SealedBidAuction` at their deterministic first and second contract addresses. Never use that key outside a disposable local Anvil chain. Running and deploying this local checkpoint costs no real money.
 
 Local API state is stored under `.quietpact-data/`, which is ignored by Git. SQLite is the zero-setup local adapter, not a production storage claim.
+
+## Hosting on Vercel
+
+QuietPact includes a Vercel Services configuration that serves the Vite website and Fastify API from one deployment. Requests under `/api` are routed to the API, while all other requests are routed to the website.
+
+Hosted state uses Turso. The API creates and checks its remote schema on startup, atomically consumes wallet challenges, stores only hashed session tokens, and applies each chain-projection batch in a transaction. Vercel deployments refuse to start without durable database credentials instead of falling back to an ephemeral local file.
+
+Create a Turso database, then add these server-side variables to the Vercel project:
+
+```text
+TURSO_DATABASE_URL=libsql://...
+TURSO_AUTH_TOKEN=...
+QUIETPACT_AUTH_ORIGIN=https://your-domain.example
+QUIETPACT_CHAIN_ID=5042002
+QUIETPACT_RPC_URL=https://rpc.testnet.arc.network
+QUIETPACT_REGISTRY_ADDRESS=0xCe084c9358FBC5200415012885c2F0F0906d400C
+QUIETPACT_REGISTRY_START_BLOCK=53204859
+```
+
+Add these build-time website variables:
+
+```text
+VITE_QUIETPACT_API_URL=/api
+VITE_QUIETPACT_AUCTION_ADDRESS=0x0C83623d0abFca5e7ad6E6179bB45A3E70C6C9DA
+VITE_QUIETPACT_CHAIN_ID=5042002
+VITE_QUIETPACT_RPC_URL=https://rpc.testnet.arc.network
+VITE_QUIETPACT_REGISTRY_ADDRESS=0xCe084c9358FBC5200415012885c2F0F0906d400C
+```
+
+Keep `TURSO_AUTH_TOKEN` server-side. Never expose it through a variable whose name starts with `VITE_`. Import the repository into Vercel from its root so [`vercel.json`](vercel.json) can build and route both services.
 
 ## Security and recovery
 

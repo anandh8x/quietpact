@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
   },
   "dependencies": {
+    "@libsql/client": "0.17.4",
     "@quietpact/chain-records": "workspace:*",
     "@quietpact/domain": "workspace:*",
     "@quietpact/envelope": "workspace:*",

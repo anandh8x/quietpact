@@ -96,17 +96,29 @@ describe("wallet API authentication", () => {
     await app.close();
   });
 
+  it("binds hosted authentication challenges to the origin and chain", async () => {
+    const auth = createInMemoryWalletAuth({
+      authenticationOrigin: "https://quietpact.example",
+      chainId: "5042002",
+    });
+    const challenge = await auth.issueChallenge(address(owner.address));
+
+    expect(challenge.message).toContain("Origin: https://quietpact.example");
+    expect(challenge.message).toContain("Chain ID: 5042002");
+    expect(challenge.message).not.toContain("local authentication");
+  });
+
   it("expires bearer sessions", async () => {
     let clock = Date.parse("2026-07-22T12:00:00.000Z");
     const auth = createInMemoryWalletAuth({ now: () => clock, sessionLifetimeMs: 1_000 });
     const actor = address(owner.address);
-    const challenge = auth.issueChallenge(actor);
+    const challenge = await auth.issueChallenge(actor);
     const signature = await owner.signMessage({ message: challenge.message });
     const session = await auth.createSession({ actor, nonce: challenge.nonce, signature });
 
-    expect(auth.authenticate(`Bearer ${session.token}`)).toBe(actor);
+    await expect(auth.authenticate(`Bearer ${session.token}`)).resolves.toBe(actor);
     clock += 1_001;
-    expect(() => auth.authenticate(`Bearer ${session.token}`)).toThrowError(
+    await expect(auth.authenticate(`Bearer ${session.token}`)).rejects.toThrowError(
       "A valid wallet session is required",
     );
   });

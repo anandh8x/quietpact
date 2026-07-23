@@ -1,21 +1,26 @@
-import { fileURLToPath } from "node:url";
-
 import { createViemInvoiceProjector } from "@quietpact/chain-records";
 import { address } from "@quietpact/domain";
 import { createPublicClient, http } from "viem";
 
 import { createApp } from "./app.js";
+import { openConfiguredQuietPactDatabase } from "./configured-persistence.js";
 import { createOperationalMonitor } from "./operational-monitor.js";
-import { openQuietPactDatabase } from "./persistence.js";
 import { createWalletAuth } from "./wallet-auth.js";
 
-const port = Number(process.env.QUIETPACT_API_PORT ?? 3001);
-const databasePath =
-  process.env.QUIETPACT_DATABASE_PATH ??
-  fileURLToPath(new URL("../../../.quietpact-data/quietpact.sqlite", import.meta.url));
-const database = openQuietPactDatabase(databasePath);
-const walletAuth = createWalletAuth(database.walletAuth);
+const serverless = process.env.VERCEL === "1";
+const port = Number(process.env.QUIETPACT_API_PORT ?? process.env.PORT ?? 3001);
+const database = await openConfiguredQuietPactDatabase();
 const chainId = process.env.QUIETPACT_CHAIN_ID ?? "31337";
+const vercelHostname = process.env.VERCEL_URL?.trim();
+const authenticationOrigin =
+  process.env.QUIETPACT_AUTH_ORIGIN ??
+  (vercelHostname === undefined || vercelHostname === ""
+    ? "local development"
+    : `https://${vercelHostname}`);
+const walletAuth = createWalletAuth(database.walletAuth, {
+  authenticationOrigin,
+  chainId,
+});
 const registry = address(
   process.env.QUIETPACT_REGISTRY_ADDRESS ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3",
 );
@@ -26,14 +31,6 @@ const operationalMonitor = createOperationalMonitor({
   databaseSchemaVersion: database.schemaVersion,
   projectorDisabled,
 });
-const app = createApp({
-  authenticate: (request) => walletAuth.authenticate(request.headers.authorization),
-  walletAuth,
-  invoiceEnvelopes: database.invoiceEnvelopes,
-  encryptionKeys: database.encryptionKeys,
-  invoiceProjection: projection,
-  readiness: () => operationalMonitor.snapshot(),
-});
 const projector = createViemInvoiceProjector({
   registry,
   publicClient: createPublicClient({
@@ -41,29 +38,55 @@ const projector = createViemInvoiceProjector({
   }),
   repository: projection,
   startBlock: BigInt(process.env.QUIETPACT_REGISTRY_START_BLOCK ?? "0"),
+  maxBlockRange: BigInt(
+    process.env.QUIETPACT_PROJECTOR_BLOCK_RANGE ?? (serverless ? "2000" : "500"),
+  ),
 });
-let projectorRunning = false;
+type ProjectionSyncResult = Awaited<ReturnType<typeof projector.sync>>;
+let activeProjectionSync: Promise<ProjectionSyncResult> | null = null;
 const syncProjection = async () => {
-  if (projectorRunning || projectorDisabled) return;
-  projectorRunning = true;
+  if (projectorDisabled) return null;
+  if (activeProjectionSync !== null) return activeProjectionSync;
+  activeProjectionSync = projector.sync();
   try {
-    const result = await projector.sync();
+    const result = await activeProjectionSync;
     operationalMonitor.projectorSucceeded();
     if (result.events > 0) app.log.info(result, "invoice projection synchronized");
+    return result;
   } catch (error) {
     operationalMonitor.projectorFailed();
     app.log.warn(
       { errorName: error instanceof Error ? error.name : "UnknownError" },
       "invoice projection synchronization failed",
     );
+    throw error;
   } finally {
-    projectorRunning = false;
+    activeProjectionSync = null;
   }
 };
-const projectorTimer = setInterval(() => void syncProjection(), 10_000);
-projectorTimer.unref();
+const syncProjectionToHead = async () => {
+  for (let batch = 0; batch < 100; batch += 1) {
+    const result = await syncProjection();
+    if (result === null || result.fromBlock === null) return;
+  }
+  throw new Error("Invoice projection did not reach the chain head within 100 batches");
+};
+const app = createApp({
+  authenticate: (request) => walletAuth.authenticate(request.headers.authorization),
+  walletAuth,
+  invoiceEnvelopes: database.invoiceEnvelopes,
+  encryptionKeys: database.encryptionKeys,
+  invoiceProjection: projection,
+  readiness: () => operationalMonitor.snapshot(),
+  ...(serverless ? { refreshInvoiceProjection: syncProjectionToHead } : {}),
+  requestPathPrefix: process.env.QUIETPACT_API_PATH_PREFIX ?? (serverless ? "/api" : ""),
+});
+const projectorTimer = serverless
+  ? null
+  : setInterval(() => void syncProjection().catch(() => undefined), 10_000);
+projectorTimer?.unref();
 app.addHook("onClose", () => {
-  clearInterval(projectorTimer);
+  if (projectorTimer !== null) clearInterval(projectorTimer);
   database.close();
 });
 
@@ -75,8 +98,10 @@ process.once("SIGINT", () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 
 try {
-  await app.listen({ host: "127.0.0.1", port });
-  await syncProjection();
+  const host = process.env.QUIETPACT_API_HOST ?? (serverless ? "0.0.0.0" : "127.0.0.1");
+  await app.listen({ host, port });
+  if (serverless) await syncProjectionToHead();
+  else await syncProjection();
 } catch (error) {
   app.log.error(error);
   await app.close();

@@ -23,6 +23,440 @@
   "components": [
     {
       "type": "library",
+      "name": "client",
+      "version": "0.17.4",
+      "purl": "pkg:npm/%40libsql/client@0.17.4",
+      "bom-ref": "pkg:npm/%40libsql/client@0.17.4",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/client/-/client-0.17.4.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "9586b21566ac0d5efc03e4e394486beae6dbde874157a3878dbfb0769f1541cc965801088eec1b0876ab684512e26e325a8a3406f668f7a22de157736519915b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "core",
+      "version": "0.17.4",
+      "purl": "pkg:npm/%40libsql/core@0.17.4",
+      "bom-ref": "pkg:npm/%40libsql/core@0.17.4",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/core/-/core-0.17.4.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "2ea17d808be7277f279801f5cbf0a18b31ea0cefcc3b5c0b800f7a5ebadaba51046ea5f12e395e487f766164e895bb892a03d4986bb868993d5b752701cc4b39"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "hrana-client",
+      "version": "0.10.0",
+      "purl": "pkg:npm/%40libsql/hrana-client@0.10.0",
+      "bom-ref": "pkg:npm/%40libsql/hrana-client@0.10.0",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/hrana-client/-/hrana-client-0.10.0.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3a803810ca91002ee49fb5763fa110a9172965fd96f808ec348c828b3060df7f53abf68c0bbb119f3b374a495d7ab86641602a133beff00daf8715665a9915bf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "isomorphic-ws",
+      "version": "0.1.5",
+      "purl": "pkg:npm/%40libsql/isomorphic-ws@0.1.5",
+      "bom-ref": "pkg:npm/%40libsql/isomorphic-ws@0.1.5",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/isomorphic-ws/-/isomorphic-ws-0.1.5.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0ed2d6207dbda27518474d22d06950dd475c4d10ba10fe2ef70fe1f4bc6951925644c01193a750c19e8991df90770569b803ab771b75f2fd0adae2184777f016"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ws",
+      "version": "8.18.1",
+      "purl": "pkg:npm/%40types/ws@8.18.1",
+      "bom-ref": "pkg:npm/%40types/ws@8.18.1",
+      "group": "@types",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@types/ws/-/ws-8.18.1.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "4e1545e83095840f24506cbe69acc543891743b1354f2ec0df2a4539ed0870957c3bf339d751bdf405b6e22acaad6e7a5ade38c86f7e8a3f056aaa011a4b815e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "node",
+      "version": "24.13.3",
+      "purl": "pkg:npm/%40types/node@24.13.3",
+      "bom-ref": "pkg:npm/%40types/node@24.13.3",
+      "group": "@types",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@types/node/-/node-24.13.3.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0e1f2f02c577ea2839c1af4e5f8a57bcc73d0f755e89b7f0db08b1d0253060e0cb0fc9e48fd52c2e3012af8f673e0fb678acf184157ebfb2fca57bd3e1eeb7f5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "undici-types",
+      "version": "7.18.2",
+      "purl": "pkg:npm/undici-types@7.18.2",
+      "bom-ref": "pkg:npm/undici-types@7.18.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/undici-types/-/undici-types-7.18.2.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "02cb82cdf7c61c9c9b49a46b9abe5e1ebf359b0254de48f0e8cfaea6b5af09788d78df52386c10dc99fc8dbf26dd9ea2cd58249e7d51d054c21003f642b2d8ff"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ws",
+      "version": "8.21.0",
+      "purl": "pkg:npm/ws@8.21.0",
+      "bom-ref": "pkg:npm/ws@8.21.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ws/-/ws-8.21.0.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "56ca76f1bec345c8a6150bebaaed967a4df3d626310c25aa1d807c42c9e4fd2e117da090ccf18fc8136e563255ddc77a5222ad52da7ab0d33bee05afcdc087fa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "js-base64",
+      "version": "3.9.1",
+      "purl": "pkg:npm/js-base64@3.9.1",
+      "bom-ref": "pkg:npm/js-base64@3.9.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/js-base64/-/js-base64-3.9.1.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "53bdeaa6d72f7ff1c839ab853a6a93ddad260d4a7431895f775e68aa87bd92a66de578625d56fe1c6d3db0bbc8f4f43db59201152e27944ada8bccdb59accfd2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "libsql",
+      "version": "0.5.29",
+      "purl": "pkg:npm/libsql@0.5.29",
+      "bom-ref": "pkg:npm/libsql@0.5.29",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/libsql/-/libsql-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f2530ff22320881cf3a0d6c03d0e7da9d55c8fa51a13f5679be7e2c17e1da17e0d6aba289346b818f296044bfe091f1ad4ec1b7e480bd7cb817c18d6745d05ce"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "load",
+      "version": "0.0.4",
+      "purl": "pkg:npm/%40neon-rs/load@0.0.4",
+      "bom-ref": "pkg:npm/%40neon-rs/load@0.0.4",
+      "group": "@neon-rs",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@neon-rs/load/-/load-0.0.4.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "9133e1759c9343107edb0a6245c156ac371e8dce0923ab643ee4bb519086e25e99bdce6453f80643fa33bc74e1d57479b52f9495f01f1ae3da8e3cd08c28870b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "detect-libc",
+      "version": "2.0.2",
+      "purl": "pkg:npm/detect-libc@2.0.2",
+      "bom-ref": "pkg:npm/detect-libc@2.0.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/detect-libc/-/detect-libc-2.0.2.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "517eac1ae9afbea49a5e074a194b20656a9c53221767fbd94eb9514ff8a86e22a118bd332f8777a2c1e3deeaa595624afa2fac8b10d2ff708e5443856eea45cb"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "darwin-arm64",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/darwin-arm64@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/darwin-arm64@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/darwin-arm64/-/darwin-arm64-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "2bed91201d4e1853d841b7dacb8f066a42e1a9fdc0adc6c7a8f16eec466269471180571dc3c46896db0ccaf6e3e62c767d8d075774372286bf072bd075a48cd0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "darwin-x64",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/darwin-x64@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/darwin-x64@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/darwin-x64/-/darwin-x64-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3ad4fe2851ec285cb547915569dafc149d816f59a086d5d3c89931bf4b6ba1cabb36e1e7b52922d5e51bc693b97b325eb03bc196a1639d6698618e75e9034b85"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-arm-gnueabihf",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-arm-gnueabihf@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-arm-gnueabihf@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-arm-gnueabihf/-/linux-arm-gnueabihf-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "083e27e338fb4894c7b28e277f972e3285a83124bb6ac9f9847ca0b03ba1465f238e30934f7c84fb1754bc8e09ef3b326f9dd53b9212878730c0eb5fea4d9485"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-arm-musleabihf",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-arm-musleabihf@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-arm-musleabihf@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-arm-musleabihf/-/linux-arm-musleabihf-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "d99f6a055a44255ece79f973211dfe979c80778b9338bc649527184f0a599e49b6bc3486942d4f465b9e2dab9f73810521390b2972b63160697b1b8d25f31572"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-arm64-gnu",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-arm64-gnu@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-arm64-gnu@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-arm64-gnu/-/linux-arm64-gnu-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "814441a9a8972061b014d11a523f0b764ec7a6ce124ed1bedf568489d0a4e5ebcc31db6c75f2f71cf0a9bf2b3e645fed90eb363169515a84aaed23ae084f64df"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-arm64-musl",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-arm64-musl@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-arm64-musl@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-arm64-musl/-/linux-arm64-musl-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "7f08186741fc99493256a5d91c5de64fff7688887537de0ec22fdfeba70f54db24f417462aae60569a0a3beed4c5a373b841f5ae8269d90130b0264cbc12e9aa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-x64-gnu",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-x64-gnu@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-x64-gnu@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-x64-gnu/-/linux-x64-gnu-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "cb5e15d2f6349e6302e86d291de25c11aadc9c65361fa726db565c79191a7161ef400121006d256ad4240ada12da78c5397898220f8960f7c0a1629b8bcdab92"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "linux-x64-musl",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/linux-x64-musl@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/linux-x64-musl@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/linux-x64-musl/-/linux-x64-musl-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "82abaac00ff7f6d1f8a4597e27d9f748e312ca68d7fba919de45a06376fde275c54f069cf5b9c534c7df2289a0be515a0b802b56a3273990f79ee2771f754ed7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "win32-x64-msvc",
+      "version": "0.5.29",
+      "purl": "pkg:npm/%40libsql/win32-x64-msvc@0.5.29",
+      "bom-ref": "pkg:npm/%40libsql/win32-x64-msvc@0.5.29",
+      "group": "@libsql",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@libsql/win32-x64-msvc/-/win32-x64-msvc-0.5.29.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "e3fd02bc47618baf8a8ccc4c6956c53369f6678e1eb1c051a0462947e81983ae0375eb731a7626f2670d2dca3249a0c964d68177ac33e4335d81199c23885772"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "promise-limit",
+      "version": "2.7.0",
+      "purl": "pkg:npm/promise-limit@2.7.0",
+      "bom-ref": "pkg:npm/promise-limit@2.7.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/promise-limit/-/promise-limit-2.7.0.tgz",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ee727abf996726c5f01a9ae719781ae30c7a7753ce8ef8b94267f58af4d1c538c7e19ffd0b38dafd408c2d5981f4df7719e58e53ddd7685684b7a8dbba86a037"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "fastify",
       "version": "5.10.0",
       "purl": "pkg:npm/fastify@5.10.0",
@@ -1189,25 +1623,6 @@
             {
               "alg": "SHA-512",
               "content": "196901be389264af3b10bad839211251879521cf66bcb2dffe75da94c392e5d62b819abda3939591b64054cd3a095c58b02c07f410d914f9504e53c0d63e1a84"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "ws",
-      "version": "8.21.0",
-      "purl": "pkg:npm/ws@8.21.0",
-      "bom-ref": "pkg:npm/ws@8.21.0",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/ws/-/ws-8.21.0.tgz",
-          "hashes": [
-            {
-              "alg": "SHA-512",
-              "content": "56ca76f1bec345c8a6150bebaaed967a4df3d626310c25aa1d807c42c9e4fd2e117da090ccf18fc8136e563255ddc77a5222ad52da7ab0d33bee05afcdc087fa"
             }
           ]
         }
@@ -3463,45 +3878,6 @@
     },
     {
       "type": "library",
-      "name": "node",
-      "version": "24.13.3",
-      "purl": "pkg:npm/%40types/node@24.13.3",
-      "bom-ref": "pkg:npm/%40types/node@24.13.3",
-      "group": "@types",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/@types/node/-/node-24.13.3.tgz",
-          "hashes": [
-            {
-              "alg": "SHA-512",
-              "content": "0e1f2f02c577ea2839c1af4e5f8a57bcc73d0f755e89b7f0db08b1d0253060e0cb0fc9e48fd52c2e3012af8f673e0fb678acf184157ebfb2fca57bd3e1eeb7f5"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "undici-types",
-      "version": "7.18.2",
-      "purl": "pkg:npm/undici-types@7.18.2",
-      "bom-ref": "pkg:npm/undici-types@7.18.2",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://registry.npmjs.org/undici-types/-/undici-types-7.18.2.tgz",
-          "hashes": [
-            {
-              "alg": "SHA-512",
-              "content": "02cb82cdf7c61c9c9b49a46b9abe5e1ebf359b0254de48f0e8cfaea6b5af09788d78df52386c10dc99fc8dbf26dd9ea2cd58249e7d51d054c21003f642b2d8ff"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "library",
       "name": "fsevents",
       "version": "2.3.3",
       "purl": "pkg:npm/fsevents@2.3.3",
@@ -3581,6 +3957,7 @@
     {
       "ref": "pkg:npm/quietpact@0.1.0",
       "dependsOn": [
+        "pkg:npm/%40libsql/client@0.17.4",
         "pkg:npm/fastify@5.10.0",
         "pkg:npm/viem@2.55.4",
         "pkg:npm/%40vitejs/plugin-react@4.7.0",
@@ -3590,6 +3967,58 @@
         "pkg:npm/libsodium-wrappers@0.8.4"
       ]
     },
+    {
+      "ref": "pkg:npm/%40libsql/client@0.17.4",
+      "dependsOn": [
+        "pkg:npm/%40libsql/core@0.17.4",
+        "pkg:npm/%40libsql/hrana-client@0.10.0",
+        "pkg:npm/js-base64@3.9.1",
+        "pkg:npm/libsql@0.5.29",
+        "pkg:npm/promise-limit@2.7.0"
+      ]
+    },
+    { "ref": "pkg:npm/%40libsql/core@0.17.4", "dependsOn": [] },
+    {
+      "ref": "pkg:npm/%40libsql/hrana-client@0.10.0",
+      "dependsOn": ["pkg:npm/%40libsql/isomorphic-ws@0.1.5"]
+    },
+    {
+      "ref": "pkg:npm/%40libsql/isomorphic-ws@0.1.5",
+      "dependsOn": ["pkg:npm/%40types/ws@8.18.1", "pkg:npm/ws@8.21.0"]
+    },
+    { "ref": "pkg:npm/%40types/ws@8.18.1", "dependsOn": ["pkg:npm/%40types/node@24.13.3"] },
+    { "ref": "pkg:npm/%40types/node@24.13.3", "dependsOn": ["pkg:npm/undici-types@7.18.2"] },
+    { "ref": "pkg:npm/undici-types@7.18.2", "dependsOn": [] },
+    { "ref": "pkg:npm/ws@8.21.0", "dependsOn": [] },
+    { "ref": "pkg:npm/js-base64@3.9.1", "dependsOn": [] },
+    {
+      "ref": "pkg:npm/libsql@0.5.29",
+      "dependsOn": [
+        "pkg:npm/%40neon-rs/load@0.0.4",
+        "pkg:npm/detect-libc@2.0.2",
+        "pkg:npm/%40libsql/darwin-arm64@0.5.29",
+        "pkg:npm/%40libsql/darwin-x64@0.5.29",
+        "pkg:npm/%40libsql/linux-arm-gnueabihf@0.5.29",
+        "pkg:npm/%40libsql/linux-arm-musleabihf@0.5.29",
+        "pkg:npm/%40libsql/linux-arm64-gnu@0.5.29",
+        "pkg:npm/%40libsql/linux-arm64-musl@0.5.29",
+        "pkg:npm/%40libsql/linux-x64-gnu@0.5.29",
+        "pkg:npm/%40libsql/linux-x64-musl@0.5.29",
+        "pkg:npm/%40libsql/win32-x64-msvc@0.5.29"
+      ]
+    },
+    { "ref": "pkg:npm/%40neon-rs/load@0.0.4", "dependsOn": [] },
+    { "ref": "pkg:npm/detect-libc@2.0.2", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/darwin-arm64@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/darwin-x64@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-arm-gnueabihf@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-arm-musleabihf@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-arm64-gnu@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-arm64-musl@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-x64-gnu@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/linux-x64-musl@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/%40libsql/win32-x64-msvc@0.5.29", "dependsOn": [] },
+    { "ref": "pkg:npm/promise-limit@2.7.0", "dependsOn": [] },
     {
       "ref": "pkg:npm/fastify@5.10.0",
       "dependsOn": [
@@ -3715,7 +4144,6 @@
         "pkg:npm/abitype@1.2.3",
         "pkg:npm/isows@1.0.7",
         "pkg:npm/ox@0.14.30",
-        "pkg:npm/ws@8.21.0",
         "pkg:npm/typescript@5.9.3"
       ]
     },
@@ -3737,7 +4165,6 @@
     { "ref": "pkg:npm/%40adraffy/ens-normalize@1.11.1", "dependsOn": [] },
     { "ref": "pkg:npm/%40noble/ciphers@1.3.0", "dependsOn": [] },
     { "ref": "pkg:npm/eventemitter3@5.0.1", "dependsOn": [] },
-    { "ref": "pkg:npm/ws@8.21.0", "dependsOn": [] },
     { "ref": "pkg:npm/typescript@5.9.3", "dependsOn": [] },
     {
       "ref": "pkg:npm/%40vitejs/plugin-react@4.7.0",
@@ -3885,7 +4312,6 @@
         "pkg:npm/postcss@8.5.21",
         "pkg:npm/rollup@4.62.2",
         "pkg:npm/tinyglobby@0.2.17",
-        "pkg:npm/%40types/node@24.13.3",
         "pkg:npm/fsevents@2.3.3",
         "pkg:npm/tsx@4.23.1"
       ]
@@ -4013,8 +4439,6 @@
     { "ref": "pkg:npm/%40rollup/rollup-win32-x64-gnu@4.62.2", "dependsOn": [] },
     { "ref": "pkg:npm/%40rollup/rollup-win32-x64-msvc@4.62.2", "dependsOn": [] },
     { "ref": "pkg:npm/tinyglobby@0.2.17", "dependsOn": [] },
-    { "ref": "pkg:npm/%40types/node@24.13.3", "dependsOn": ["pkg:npm/undici-types@7.18.2"] },
-    { "ref": "pkg:npm/undici-types@7.18.2", "dependsOn": [] },
     { "ref": "pkg:npm/fsevents@2.3.3", "dependsOn": [] },
     { "ref": "pkg:npm/tsx@4.23.1", "dependsOn": [] },
     { "ref": "pkg:npm/libsodium-wrappers@0.8.4", "dependsOn": ["pkg:npm/libsodium@0.8.4"] },

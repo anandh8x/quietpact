@@ -27,7 +27,7 @@ describe("SQLite backup and restore drill", () => {
     const publicKey = "A".repeat(44);
     const live = openQuietPactDatabase(livePath);
     await live.encryptionKeys.put({ id: actor, publicKey });
-    live.walletAuth.putChallenge("restore-drill-nonce", {
+    await live.walletAuth.putChallenge("restore-drill-nonce", {
       actor,
       message: "QuietPact restore drill",
       expiresAt: Date.parse("2026-07-24T00:00:00.000Z"),
@@ -39,7 +39,7 @@ describe("SQLite backup and restore drill", () => {
 
     const restored = openQuietPactDatabase(restoredPath);
     await expect(restored.encryptionKeys.get(actor)).resolves.toEqual({ id: actor, publicKey });
-    expect(restored.walletAuth.takeChallenge("restore-drill-nonce")).toMatchObject({
+    await expect(restored.walletAuth.takeChallenge("restore-drill-nonce")).resolves.toMatchObject({
       actor,
       message: "QuietPact restore drill",
     });

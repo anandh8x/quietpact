@@ -4,7 +4,7 @@ import { createApp } from "../src/app.js";
 import { createOperationalMonitor } from "../src/operational-monitor.js";
 
 describe("privacy-safe operational readiness", () => {
-  it("reports startup, bounded degradation, and recovery without workflow metadata", () => {
+  it("reports startup, bounded degradation, and recovery without workflow metadata", async () => {
     let clock = Date.parse("2026-07-23T12:00:00.000Z");
     const monitor = createOperationalMonitor({
       checkDatabase: () => undefined,
@@ -13,7 +13,7 @@ describe("privacy-safe operational readiness", () => {
       now: () => clock,
     });
 
-    expect(monitor.snapshot()).toMatchObject({
+    await expect(monitor.snapshot()).resolves.toMatchObject({
       status: "starting",
       database: "ok",
       projector: "starting",
@@ -23,7 +23,7 @@ describe("privacy-safe operational readiness", () => {
 
     clock += 1_000;
     monitor.projectorSucceeded();
-    expect(monitor.snapshot()).toMatchObject({
+    await expect(monitor.snapshot()).resolves.toMatchObject({
       status: "ready",
       projector: "ok",
       lastProjectorSuccessAt: "2026-07-23T12:00:01.000Z",
@@ -32,14 +32,14 @@ describe("privacy-safe operational readiness", () => {
 
     monitor.projectorFailed();
     monitor.projectorFailed();
-    expect(monitor.snapshot()).toMatchObject({
+    await expect(monitor.snapshot()).resolves.toMatchObject({
       status: "ready",
       projector: "degraded",
       consecutiveProjectorFailures: 2,
     });
 
     monitor.projectorFailed();
-    const degraded = monitor.snapshot();
+    const degraded = await monitor.snapshot();
     expect(degraded).toMatchObject({
       status: "degraded",
       projector: "degraded",
@@ -48,14 +48,14 @@ describe("privacy-safe operational readiness", () => {
     expect(JSON.stringify(degraded)).not.toMatch(/address|invoice|auction|transaction|rpc/i);
 
     monitor.projectorSucceeded();
-    expect(monitor.snapshot()).toMatchObject({
+    await expect(monitor.snapshot()).resolves.toMatchObject({
       status: "ready",
       projector: "ok",
       consecutiveProjectorFailures: 0,
     });
   });
 
-  it("reports database failure without exposing its error", () => {
+  it("reports database failure without exposing its error", async () => {
     const monitor = createOperationalMonitor({
       checkDatabase: () => {
         throw new Error("DATABASE_PATH_PRIVACY_CANARY_4f72");
@@ -64,7 +64,7 @@ describe("privacy-safe operational readiness", () => {
       projectorDisabled: true,
     });
 
-    const report = monitor.snapshot();
+    const report = await monitor.snapshot();
     expect(report).toMatchObject({
       status: "degraded",
       database: "degraded",

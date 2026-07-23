@@ -23,7 +23,7 @@ export interface QuietPactDatabase {
   readonly encryptionKeys: EncryptionKeyRepository;
   readonly walletAuth: WalletAuthStore;
   invoiceProjection(scope: string): InvoiceProjectionRepository;
-  checkHealth(): void;
+  checkHealth(): Promise<void>;
   close(): void;
 }
 
@@ -146,6 +146,7 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
     walletAuth: {
       putChallenge(nonce, challenge) {
         putChallenge.run(nonce, challenge.actor, challenge.message, challenge.expiresAt);
+        return Promise.resolve();
       },
       takeChallenge(nonce) {
         database.exec("BEGIN IMMEDIATE");
@@ -153,25 +154,32 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
           const row = getChallenge.get(nonce);
           deleteChallenge.run(nonce);
           database.exec("COMMIT");
-          return row === undefined ? null : parseChallenge(row);
+          return Promise.resolve(row === undefined ? null : parseChallenge(row));
         } catch (error) {
           database.exec("ROLLBACK");
-          throw error;
+          return Promise.reject(
+            error instanceof Error
+              ? error
+              : new Error("Wallet challenge transaction failed", { cause: error }),
+          );
         }
       },
       putSession(tokenHash, session) {
         putSession.run(tokenHash, session.actor, session.expiresAt);
+        return Promise.resolve();
       },
       getSession(tokenHash) {
         const row = getSession.get(tokenHash);
-        return row === undefined ? null : parseSession(row);
+        return Promise.resolve(row === undefined ? null : parseSession(row));
       },
       deleteSession(tokenHash) {
         deleteSession.run(tokenHash);
+        return Promise.resolve();
       },
       pruneExpired(timestamp) {
         pruneChallenges.run(timestamp);
         pruneSessions.run(timestamp);
+        return Promise.resolve();
       },
     },
     invoiceProjection(scope) {
@@ -260,6 +268,7 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
       if (result === undefined || Reflect.get(result, "healthy") !== 1) {
         throw new Error("QuietPact database health check failed");
       }
+      return Promise.resolve();
     },
     close() {
       database.close();
@@ -379,7 +388,7 @@ function tableHasColumn(database: DatabaseSync, table: string, column: string): 
     .some((row) => requiredString(row, "name") === column);
 }
 
-function parseProjection(row: object): PublicInvoiceProjection {
+export function parseProjection(row: object): PublicInvoiceProjection {
   return {
     id: requiredHex(row, "id"),
     payer: parseStoredAddress(row, "payer"),
@@ -403,7 +412,7 @@ function optionalHex(row: object, key: string): `0x${string}` | null {
   return value as `0x${string}`;
 }
 
-function sameCreatedProjection(row: object, invoice: PublicInvoiceProjection): boolean {
+export function sameCreatedProjection(row: object, invoice: PublicInvoiceProjection): boolean {
   return (
     requiredString(row, "payer") === invoice.payer &&
     requiredString(row, "payee") === invoice.payee &&
@@ -434,7 +443,7 @@ function requiredInvoiceState(row: object, key: string): PublicInvoiceProjection
   return value;
 }
 
-function parseEnvelope(value: string): SealedEnvelope {
+export function parseEnvelope(value: string): SealedEnvelope {
   const parsed: unknown = JSON.parse(value);
   if (
     parsed === null ||
@@ -449,7 +458,7 @@ function parseEnvelope(value: string): SealedEnvelope {
   return parsed as SealedEnvelope;
 }
 
-function parseChallenge(row: object): StoredWalletChallenge {
+export function parseChallenge(row: object): StoredWalletChallenge {
   return {
     actor: parseStoredAddress(row, "actor"),
     message: requiredString(row, "message"),
@@ -457,7 +466,7 @@ function parseChallenge(row: object): StoredWalletChallenge {
   };
 }
 
-function parseSession(row: object): StoredWalletSession {
+export function parseSession(row: object): StoredWalletSession {
   return {
     actor: parseStoredAddress(row, "actor"),
     expiresAt: requiredNumber(row, "expires_at"),
@@ -468,7 +477,7 @@ function parseStoredAddress(row: object, key: string): Address {
   return address(requiredString(row, key));
 }
 
-function requiredString(row: object, key: string): string {
+export function requiredString(row: object, key: string): string {
   const value = Reflect.get(row, key) as unknown;
   if (typeof value !== "string") throw new Error(`Database column ${key} is invalid`);
   return value;

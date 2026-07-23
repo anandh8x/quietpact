@@ -17,13 +17,16 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "test": "vitest run --exclude **/*.integration.test.ts",
+    "test": "vitest run --exclude='**/*.integration.test.ts' --exclude='tests/browser/**'",
+    "test:browser": "playwright test",
     "test:chain": "vitest run packages/chain-records/test/invoice-registry.integration.test.ts packages/chain-records/test/sealed-bid-auction.integration.test.ts packages/payments/test/public-payment.integration.test.ts apps/api/test/invoice-projection.integration.test.ts",
     "contracts:test": "forge test --root contracts",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",

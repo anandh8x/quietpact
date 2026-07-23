@@ -46,7 +46,9 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-.file-button:focus-within {
+.file-button:focus-within,
+.step-rail:focus-visible,
+.phase-rail:focus-visible {
   outline: 3px solid var(--coral);
   outline-offset: 3px;
 }

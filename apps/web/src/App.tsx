@@ -687,7 +687,7 @@ export function App() {
           </div>
 
           <div className="product-console invoice-console">
-            <ol className="step-rail" aria-label="Invoice workflow steps">
+            <ol className="step-rail" aria-label="Invoice workflow steps" tabIndex={0}>
               {["Connect", "Encrypt", "Register", "Approve", "Reference"].map((step, index) => (
                 <li className={index === 0 && actor !== null ? "active" : ""} key={step}>
                   <span>{index + 1}</span>
@@ -866,7 +866,7 @@ export function App() {
                 Refresh auction
               </button>
             </div>
-            <ol className="phase-rail" aria-label="Auction phases">
+            <ol className="phase-rail" aria-label="Auction phases" tabIndex={0}>
               {["SCHEDULED", "COMMIT_OPEN", "REVEAL_OPEN", "FINALIZED"].map((item) => (
                 <li className={phase === item ? "active" : ""} key={item}>
                   <span aria-hidden="true">{phase === item ? "●" : "○"}</span>

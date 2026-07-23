@@ -5,6 +5,7 @@ import { createPublicClient, http } from "viem";
 import { createApp } from "./app.js";
 import { openConfiguredQuietPactDatabase } from "./configured-persistence.js";
 import { createOperationalMonitor } from "./operational-monitor.js";
+import { projectionReachedHead, syncProjectionOnStartup } from "./server-runtime.js";
 import { createWalletAuth } from "./wallet-auth.js";
 
 const serverless = process.env.VERCEL === "1";
@@ -26,6 +27,7 @@ const registry = address(
 );
 const projection = database.invoiceProjection(`${chainId}:${registry}`);
 const projectorDisabled = process.env.QUIETPACT_PROJECTOR_DISABLED === "1";
+const projectorBlockRange = BigInt(process.env.QUIETPACT_PROJECTOR_BLOCK_RANGE ?? "500");
 const operationalMonitor = createOperationalMonitor({
   checkDatabase: () => database.checkHealth(),
   databaseSchemaVersion: database.schemaVersion,
@@ -38,9 +40,7 @@ const projector = createViemInvoiceProjector({
   }),
   repository: projection,
   startBlock: BigInt(process.env.QUIETPACT_REGISTRY_START_BLOCK ?? "0"),
-  maxBlockRange: BigInt(
-    process.env.QUIETPACT_PROJECTOR_BLOCK_RANGE ?? (serverless ? "2000" : "500"),
-  ),
+  maxBlockRange: projectorBlockRange,
 });
 type ProjectionSyncResult = Awaited<ReturnType<typeof projector.sync>>;
 let activeProjectionSync: Promise<ProjectionSyncResult> | null = null;
@@ -67,7 +67,7 @@ const syncProjection = async () => {
 const syncProjectionToHead = async () => {
   for (let batch = 0; batch < 100; batch += 1) {
     const result = await syncProjection();
-    if (result === null || result.fromBlock === null) return;
+    if (result === null || projectionReachedHead(result, projectorBlockRange)) return;
   }
   throw new Error("Invoice projection did not reach the chain head within 100 batches");
 };
@@ -77,7 +77,10 @@ const app = createApp({
   invoiceEnvelopes: database.invoiceEnvelopes,
   encryptionKeys: database.encryptionKeys,
   invoiceProjection: projection,
-  readiness: () => operationalMonitor.snapshot(),
+  readiness: async () => {
+    if (serverless) await syncProjection().catch(() => undefined);
+    return operationalMonitor.snapshot();
+  },
   ...(serverless ? { refreshInvoiceProjection: syncProjectionToHead } : {}),
   requestPathPrefix: process.env.QUIETPACT_API_PATH_PREFIX ?? (serverless ? "/api" : ""),
 });
@@ -100,8 +103,7 @@ process.once("SIGTERM", () => void shutdown());
 try {
   const host = process.env.QUIETPACT_API_HOST ?? (serverless ? "0.0.0.0" : "127.0.0.1");
   await app.listen({ host, port });
-  if (serverless) await syncProjectionToHead();
-  else await syncProjection();
+  await syncProjectionOnStartup(serverless, syncProjection);
 } catch (error) {
   app.log.error(error);
   await app.close();

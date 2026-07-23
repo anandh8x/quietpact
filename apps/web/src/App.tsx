@@ -1033,7 +1033,7 @@ export function App() {
               </p>
             ) : null}
             <p className="forfeit-warning">
-              △ Missing the reveal deadline forfeits the fixed bond.
+              Bond rule: bids not revealed before the deadline forfeit the fixed bond.
             </p>
           </div>
 

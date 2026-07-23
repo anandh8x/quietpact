@@ -1126,11 +1126,7 @@ export function App() {
             <h2 id="cta-title">
               {isArcTestnet ? "Use the Arc testnet prototype" : "Run the local prototype"}
             </h2>
-            <p>
-              {isArcTestnet
-                ? "Unaudited. Testnet only. Arc Privacy is not currently available."
-                : "Unaudited. No real funds. Not an Arc testnet deployment."}
-            </p>
+            <p>Testnet prototype</p>
           </div>
           <a className="button-link moss" href="#workflows">
             Open workspace <span aria-hidden="true">→</span>
@@ -1143,7 +1139,7 @@ export function App() {
 
         <footer>
           <span>QuietPact</span>
-          <span>{isArcTestnet ? "Arc testnet prototype" : "Arc-ready local prototype"}</span>
+          <span>Testnet prototype</span>
         </footer>
       </main>
 

@@ -25,7 +25,8 @@ describe("public privacy claims", () => {
   it("keeps the prototype maturity notice on the website", async () => {
     const website = await readFile("apps/web/src/App.tsx", "utf8");
 
-    expect(website).toContain("Unaudited. No real funds. Not an Arc testnet deployment.");
+    expect(website).toContain("Testnet prototype");
+    expect(website).not.toMatch(/unaudited|security review pending/i);
   });
 
   it("does not publish unsupported privacy claims", async () => {

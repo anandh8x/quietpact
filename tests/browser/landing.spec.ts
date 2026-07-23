@@ -20,5 +20,6 @@ test("explains the problem, purpose, and current privacy boundary", async ({ pag
     page.getByRole("heading", { name: "Know what stays private. Know what goes public." }),
   ).toBeVisible();
   await expect(page.getByText("Payments are public onchain.")).toBeVisible();
+  await expect(page.getByText("Testnet prototype", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect wallet" })).toBeVisible();
 });

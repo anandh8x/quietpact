@@ -49,6 +49,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: forge build --root contracts
       - run: pnpm test:chain
+      - run: pnpm demo:check
 
   browser:
     runs-on: ubuntu-latest

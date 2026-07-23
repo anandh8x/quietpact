@@ -18,76 +18,26 @@ import {
 import type { StoredWalletChallenge, StoredWalletSession, WalletAuthStore } from "./wallet-auth.js";
 
 export interface QuietPactDatabase {
+  readonly schemaVersion: number;
   readonly invoiceEnvelopes: InvoiceEnvelopeRepository;
   readonly encryptionKeys: EncryptionKeyRepository;
   readonly walletAuth: WalletAuthStore;
   invoiceProjection(scope: string): InvoiceProjectionRepository;
+  checkHealth(): void;
   close(): void;
 }
+
+export const QUIETPACT_DATABASE_SCHEMA_VERSION = 3;
 
 export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
   if (databasePath !== ":memory:") mkdirSync(dirname(databasePath), { recursive: true });
   const database = new DatabaseSync(databasePath);
-  database.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;");
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS invoice_envelopes (
-      id TEXT PRIMARY KEY,
-      envelope_json TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS encryption_keys (
-      id TEXT PRIMARY KEY,
-      public_key TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS auth_challenges (
-      nonce TEXT PRIMARY KEY,
-      actor TEXT NOT NULL,
-      message TEXT NOT NULL,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS auth_sessions (
-      token_hash TEXT PRIMARY KEY,
-      actor TEXT NOT NULL,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS invoice_projection (
-      scope TEXT NOT NULL,
-      id TEXT NOT NULL,
-      payer TEXT NOT NULL,
-      payee TEXT NOT NULL,
-      commitment TEXT NOT NULL,
-      ciphertext_hash TEXT NOT NULL,
-      state TEXT NOT NULL,
-      public_payment_reference TEXT,
-      created_transaction_hash TEXT NOT NULL,
-      latest_transaction_hash TEXT NOT NULL,
-      latest_block TEXT NOT NULL,
-      PRIMARY KEY (scope, id)
-    );
-    CREATE TABLE IF NOT EXISTS projector_cursors (
-      scope TEXT PRIMARY KEY,
-      through_block TEXT NOT NULL,
-      through_hash TEXT NOT NULL
-    );
-  `);
-  const cursorColumns = database.prepare("PRAGMA table_info(projector_cursors)").all();
-  if (!cursorColumns.some((column) => requiredString(column, "name") === "through_hash")) {
-    database.exec(`
-      ALTER TABLE projector_cursors ADD COLUMN through_hash TEXT NOT NULL
-      DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000'
-    `);
-  }
-  database.exec(`
-    UPDATE projector_cursors
-    SET through_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
-    WHERE through_hash = '0x'
-  `);
-  const projectionColumns = database.prepare("PRAGMA table_info(invoice_projection)").all();
-  if (
-    !projectionColumns.some(
-      (column) => requiredString(column, "name") === "public_payment_reference",
-    )
-  ) {
-    database.exec("ALTER TABLE invoice_projection ADD COLUMN public_payment_reference TEXT");
+  try {
+    database.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;");
+    migrateDatabase(database);
+  } catch (error) {
+    database.close();
+    throw error;
   }
 
   const putEnvelope = database.prepare(
@@ -153,8 +103,10 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
     FROM invoice_projection WHERE scope = ? AND id = ?
   `);
   const clearProjection = database.prepare("DELETE FROM invoice_projection WHERE scope = ?");
+  const healthCheck = database.prepare("SELECT 1 AS healthy");
 
   return {
+    schemaVersion: QUIETPACT_DATABASE_SCHEMA_VERSION,
     invoiceEnvelopes: {
       put(id, envelope) {
         const key = id.toLowerCase();
@@ -303,10 +255,128 @@ export function openQuietPactDatabase(databasePath: string): QuietPactDatabase {
         },
       };
     },
+    checkHealth() {
+      const result = healthCheck.get();
+      if (result === undefined || Reflect.get(result, "healthy") !== 1) {
+        throw new Error("QuietPact database health check failed");
+      }
+    },
     close() {
       database.close();
     },
   };
+}
+
+function migrateDatabase(database: DatabaseSync): void {
+  const currentVersion = databaseUserVersion(database);
+  if (currentVersion > QUIETPACT_DATABASE_SCHEMA_VERSION) {
+    throw new Error(
+      `QuietPact database schema ${String(currentVersion)} is newer than supported schema ${String(QUIETPACT_DATABASE_SCHEMA_VERSION)}`,
+    );
+  }
+
+  const migrations: ReadonlyArray<Readonly<{ version: number; apply(): void }>> = [
+    {
+      version: 1,
+      apply() {
+        database.exec(`
+          CREATE TABLE IF NOT EXISTS invoice_envelopes (
+            id TEXT PRIMARY KEY,
+            envelope_json TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS encryption_keys (
+            id TEXT PRIMARY KEY,
+            public_key TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS auth_challenges (
+            nonce TEXT PRIMARY KEY,
+            actor TEXT NOT NULL,
+            message TEXT NOT NULL,
+            expires_at INTEGER NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS auth_sessions (
+            token_hash TEXT PRIMARY KEY,
+            actor TEXT NOT NULL,
+            expires_at INTEGER NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS invoice_projection (
+            scope TEXT NOT NULL,
+            id TEXT NOT NULL,
+            payer TEXT NOT NULL,
+            payee TEXT NOT NULL,
+            commitment TEXT NOT NULL,
+            ciphertext_hash TEXT NOT NULL,
+            state TEXT NOT NULL,
+            public_payment_reference TEXT,
+            created_transaction_hash TEXT NOT NULL,
+            latest_transaction_hash TEXT NOT NULL,
+            latest_block TEXT NOT NULL,
+            PRIMARY KEY (scope, id)
+          );
+          CREATE TABLE IF NOT EXISTS projector_cursors (
+            scope TEXT PRIMARY KEY,
+            through_block TEXT NOT NULL,
+            through_hash TEXT NOT NULL
+          );
+        `);
+      },
+    },
+    {
+      version: 2,
+      apply() {
+        if (!tableHasColumn(database, "projector_cursors", "through_hash")) {
+          database.exec(`
+            ALTER TABLE projector_cursors ADD COLUMN through_hash TEXT NOT NULL
+            DEFAULT '0x0000000000000000000000000000000000000000000000000000000000000000'
+          `);
+        }
+        database.exec(`
+          UPDATE projector_cursors
+          SET through_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
+          WHERE through_hash = '0x'
+        `);
+      },
+    },
+    {
+      version: 3,
+      apply() {
+        if (!tableHasColumn(database, "invoice_projection", "public_payment_reference")) {
+          database.exec("ALTER TABLE invoice_projection ADD COLUMN public_payment_reference TEXT");
+        }
+      },
+    },
+  ];
+
+  for (const migration of migrations) {
+    if (migration.version <= currentVersion) continue;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      migration.apply();
+      database.exec(`PRAGMA user_version = ${String(migration.version)}`);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw new Error(`QuietPact database migration ${String(migration.version)} failed`, {
+        cause: error,
+      });
+    }
+  }
+}
+
+function databaseUserVersion(database: DatabaseSync): number {
+  const row = database.prepare("PRAGMA user_version").get();
+  const value = row === undefined ? undefined : Reflect.get(row, "user_version");
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error("QuietPact database schema version is invalid");
+  }
+  return value;
+}
+
+function tableHasColumn(database: DatabaseSync, table: string, column: string): boolean {
+  return database
+    .prepare(`PRAGMA table_info(${table})`)
+    .all()
+    .some((row) => requiredString(row, "name") === column);
 }
 
 function parseProjection(row: object): PublicInvoiceProjection {

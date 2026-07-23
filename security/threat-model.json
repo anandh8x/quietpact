@@ -206,6 +206,20 @@
       "residualRisk": "MEDIUM",
       "status": "MITIGATED_FOR_TESTNET",
       "releaseRequirement": "Review audit findings and SBOM changes for each release and block unresolved critical or high production vulnerabilities."
+    },
+    {
+      "id": "THREAT-10",
+      "title": "Schema drift or unsafe migration corrupts persisted workflow state",
+      "affectedAssets": ["ASSET-01", "ASSET-04", "ASSET-06"],
+      "controls": [
+        "Every schema change advances SQLite user_version in an ordered transaction.",
+        "Legacy migration tests preserve projection data while adding required columns.",
+        "The API refuses databases created by a newer unsupported schema.",
+        "Integrity-checked backup and restore tooling provides a rollback boundary."
+      ],
+      "residualRisk": "LOW",
+      "status": "MITIGATED_FOR_LOCAL_PROTOTYPE",
+      "releaseRequirement": "Back up before every production migration and rehearse forward migration plus rollback against production-sized data."
     }
   ],
   "releaseBlockers": [

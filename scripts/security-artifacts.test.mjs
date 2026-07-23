@@ -34,4 +34,16 @@ describe("release security artifacts", () => {
     expect(sbom.components.length).toBeGreaterThan(0);
     expect(new Set(references).size).toBe(references.length);
   });
+
+  it("defines an independent review scope without self-approving release", () => {
+    const scope = JSON.parse(
+      readFileSync(resolve(projectRoot, "security/review-scope.json"), "utf8"),
+    );
+
+    expect(scope.reviewType).toBe("INDEPENDENT_TESTNET_PROTOTYPE_SECURITY_REVIEW");
+    expect(scope.inScope).toContain("contracts/src/**");
+    expect(scope.requiredVerificationCommands).toContain("pnpm contracts:test");
+    expect(scope.exitCriteria).toContain("No unresolved critical or high finding.");
+    expect(JSON.stringify(scope)).not.toMatch(/audit (passed|approved)|production.ready/i);
+  });
 });

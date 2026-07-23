@@ -10,6 +10,7 @@ import Fastify, {
 import { isHex } from "viem";
 
 import { WalletAuthError, type WalletAuth } from "./wallet-auth.js";
+import type { SafeReadinessReport } from "./operational-monitor.js";
 
 export interface InvoiceEnvelopeRepository {
   put(id: string, envelope: SealedEnvelope): Promise<string>;
@@ -38,6 +39,7 @@ export interface AppOptions {
   readonly logger?: FastifyServerOptions["logger"];
   readonly bodyLimitBytes?: number;
   readonly authRateLimit?: AuthRateLimitOptions;
+  readonly readiness?: () => SafeReadinessReport | Promise<SafeReadinessReport>;
 }
 
 export interface AuthRateLimitOptions {
@@ -89,6 +91,14 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
     name: "quietpact-api",
     status: "ok",
   }));
+
+  if (options.readiness !== undefined) {
+    const readiness = options.readiness;
+    app.get("/ready", async (_request, reply) => {
+      const report = await readiness();
+      return reply.code(report.status === "ready" ? 200 : 503).send(report);
+    });
+  }
 
   if (options.walletAuth !== undefined) {
     const walletAuth = options.walletAuth;

@@ -77,7 +77,9 @@ Local API state is stored under `.quietpact-data/`, which is ignored by Git. SQL
 
 ## Security and recovery
 
-The public [threat model](security/threat-model.json) records protected assets, trust boundaries, current controls, residual risks, and release blockers. The generated [CycloneDX 1.6 SBOM](security/sbom.cdx.json) inventories the locked production dependency graph. Refresh and audit it with:
+The public [threat model](security/threat-model.json) records protected assets, trust boundaries, current controls, residual risks, and release blockers. The [independent review scope](security/review-scope.json) defines the exact areas, commands, deliverables, severity policy, and exit criteria expected from an external reviewer. QuietPact remains unaudited until that review is completed against an identified Git commit.
+
+The generated [CycloneDX 1.6 SBOM](security/sbom.cdx.json) inventories the locked production dependency graph. Refresh and audit it with:
 
 ```bash
 pnpm security:sbom
@@ -100,6 +102,18 @@ pnpm data:restore -- .quietpact-data/backups/quietpact-backup.sqlite .quietpact-
 ```
 
 Both operations verify SQLite integrity, create mode-`0600` output, and refuse to overwrite an existing destination. Backups contain encrypted envelopes, public metadata, public encryption keys, and hashed authentication state. Store them privately even though invoice plaintext and raw session tokens are not present.
+
+SQLite schema changes run as ordered transactions and advance `PRAGMA user_version`. The API migrates supported legacy schemas without dropping their projection data and refuses a database created by newer, incompatible application code.
+
+The API readiness endpoint at `http://localhost:3001/ready` reports only schema version, database status, projector state, consecutive projector failures, last successful sync time, and uptime. It contains no workflow IDs, addresses, transaction hashes, RPC errors, or business-volume counts. Database failure or three consecutive projector failures returns HTTP `503`; a successful sync restores readiness automatically.
+
+Start a completely disposable local demonstration with:
+
+```bash
+pnpm demo:local
+```
+
+The launcher builds and deploys both contracts, starts isolated Anvil, API, and website services on ports `18545`, `13001`, and `4173`, and prints the local URL plus Anvil's seeded development accounts. It stores state in a temporary directory and erases it when stopped. These accounts and their test ETH are public development fixtures. Never send them real assets or reuse their keys. CI verifies the same stack with `pnpm demo:check`.
 
 ## Arc Testnet
 

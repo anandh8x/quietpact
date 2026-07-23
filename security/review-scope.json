@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "project": "QuietPact",
+  "reviewType": "INDEPENDENT_TESTNET_PROTOTYPE_SECURITY_REVIEW",
+  "revisionPolicy": "The reviewer must identify the exact Git commit reviewed. Any later contract, cryptography, authorization, persistence, or deployment change requires impact assessment and may require re-review.",
+  "objectives": [
+    "Identify contract authorization, lifecycle, timing, withdrawal, and bond-accounting defects.",
+    "Review browser envelope encryption, canonical commitments, recipient handling, and bid-opening key derivation.",
+    "Review wallet challenge replay prevention, signature verification, bearer-session storage, and API authorization.",
+    "Review encrypted persistence, schema migration, backup, restore, and metadata leakage boundaries.",
+    "Verify that website and README privacy claims match calldata, events, contract state, API behavior, and Arc Testnet behavior.",
+    "Assess dependency, build, deployment, and operator controls appropriate to an unaudited testnet prototype."
+  ],
+  "inScope": [
+    "contracts/src/**",
+    "contracts/test/**",
+    "packages/domain/**",
+    "packages/envelope/**",
+    "packages/invoice/**",
+    "packages/payments/**",
+    "packages/chain-records/**",
+    "apps/api/**",
+    "apps/web/**",
+    "scripts/deploy-arc-testnet.mjs",
+    "scripts/smoke-arc-testnet.mjs",
+    "scripts/database-snapshot.mjs",
+    "scripts/start-local-demo.mjs",
+    "deployments/arc-testnet.json",
+    "deployments/arc-testnet-smoke.json",
+    "security/threat-model.json",
+    "security/sbom.cdx.json"
+  ],
+  "deployedTargets": [
+    {
+      "network": "Arc Testnet",
+      "chainId": 5042002,
+      "contract": "InvoiceRegistry",
+      "address": "0xCe084c9358FBC5200415012885c2F0F0906d400C"
+    },
+    {
+      "network": "Arc Testnet",
+      "chainId": 5042002,
+      "contract": "SealedBidAuction",
+      "address": "0x0C83623d0abFca5e7ad6E6179bB45A3E70C6C9DA"
+    }
+  ],
+  "requiredVerificationCommands": [
+    "pnpm install --frozen-lockfile",
+    "pnpm verify",
+    "pnpm contracts:test",
+    "pnpm test:chain",
+    "pnpm test:browser",
+    "pnpm security:sbom",
+    "pnpm security:audit",
+    "pnpm demo:check"
+  ],
+  "requiredDeliverables": [
+    "Review report naming the exact Git commit, methodology, tools, assumptions, and limitations.",
+    "Finding list with severity, exploit scenario, affected component, evidence, and remediation.",
+    "Explicit statement of unresolved critical and high findings.",
+    "Retest evidence for every remediated critical or high finding.",
+    "Assessment of whether current public privacy claims are supported by implemented behavior."
+  ],
+  "severityPolicy": {
+    "criticalOrHigh": "Blocks release until remediated and independently retested.",
+    "medium": "Requires documented owner, remediation decision, and target date.",
+    "lowOrInformational": "Tracked for later hardening or explicitly accepted with rationale."
+  },
+  "knownLimitations": [
+    "Arc native privacy is unavailable and no confidential settlement is claimed.",
+    "Browser private-key storage is prototype infrastructure and is not OS-backed or wallet-backed.",
+    "SQLite is the local zero-setup adapter, not a production managed-storage claim.",
+    "The API rate limiter is process-local and is not a distributed production control.",
+    "No mainnet deployment or real-value use is in scope."
+  ],
+  "outOfScope": [
+    "Arc protocol, Arc RPC, ArcScan, wallet-extension, browser, and operating-system implementation security.",
+    "Mainnet deployment, production custody, and real commercial data.",
+    "Formal verification or a guarantee that no undiscovered vulnerability exists.",
+    "Arc confidential settlement until a public implementation can be independently tested."
+  ],
+  "exitCriteria": [
+    "No unresolved critical or high finding.",
+    "Every remediated critical or high finding is independently retested.",
+    "README, website, threat model, demo, and deployed behavior make matching privacy claims.",
+    "The final report and reviewed commit identifier are published before any hardened-release claim."
+  ]
+}

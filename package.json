@@ -21,6 +21,8 @@
     "security:audit": "pnpm audit --prod --audit-level high",
     "data:backup": "node scripts/database-snapshot.mjs backup",
     "data:restore": "node scripts/database-snapshot.mjs restore",
+    "demo:local": "node scripts/start-local-demo.mjs",
+    "demo:check": "node scripts/start-local-demo.mjs --check",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",

@@ -5,7 +5,7 @@ import { createPublicClient, http } from "viem";
 import { createApp } from "./app.js";
 import { openConfiguredQuietPactDatabase } from "./configured-persistence.js";
 import { createOperationalMonitor } from "./operational-monitor.js";
-import { projectionReachedHead, syncProjectionOnStartup } from "./server-runtime.js";
+import { projectionReachedHead, startServerRuntime } from "./server-runtime.js";
 import { createWalletAuth } from "./wallet-auth.js";
 
 const serverless = process.env.VERCEL === "1";
@@ -102,8 +102,12 @@ process.once("SIGTERM", () => void shutdown());
 
 try {
   const host = process.env.QUIETPACT_API_HOST ?? (serverless ? "0.0.0.0" : "127.0.0.1");
-  await app.listen({ host, port });
-  await syncProjectionOnStartup(serverless, syncProjection);
+  await startServerRuntime({
+    serverless,
+    listen: () => app.listen({ host, port }),
+    syncProjection,
+    onBackgroundError: (error) => app.log.error(error),
+  });
 } catch (error) {
   app.log.error(error);
   await app.close();

@@ -1,8 +1,18 @@
-export async function syncProjectionOnStartup(
-  serverless: boolean,
-  sync: () => unknown,
-): Promise<void> {
-  if (!serverless) await sync();
+export interface ServerRuntimeOptions {
+  readonly serverless: boolean;
+  readonly listen: () => Promise<unknown>;
+  readonly syncProjection: () => unknown;
+  readonly onBackgroundError: (error: unknown) => void;
+}
+
+export async function startServerRuntime(options: ServerRuntimeOptions): Promise<void> {
+  const listening = options.listen();
+  if (options.serverless) {
+    void listening.catch(options.onBackgroundError);
+    return;
+  }
+  await listening;
+  await options.syncProjection();
 }
 
 export interface ProjectionProgress {

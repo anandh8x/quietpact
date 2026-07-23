@@ -16,6 +16,7 @@
     "arc:check": "node scripts/check-arc-testnet.mjs",
     "arc:deploy": "node scripts/deploy-arc-testnet.mjs",
     "arc:dev": "node scripts/run-arc-testnet.mjs",
+    "arc:smoke": "bash scripts/smoke-arc-testnet.sh",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",

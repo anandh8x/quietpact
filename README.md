@@ -16,9 +16,9 @@ QuietPact is an Arc-ready prototype for sealed-bid procurement and encrypted inv
 
 ## Current status
 
-Phases 0–7 are complete: the workspace, workflow state machines, Solidity contracts, authenticated multi-recipient envelope encryption, encrypted invoice slice, sealed-bid procurement slice, explicit payment adapters, and product-quality website are implemented and tested locally.
+Phases 0–8 are complete: the workspace, workflow state machines, Solidity contracts, authenticated multi-recipient envelope encryption, encrypted invoice slice, sealed-bid procurement slice, explicit payment adapters, product-quality website, and reproducible Arc Testnet deployment are implemented and tested.
 
-Phase 8 is in progress. QuietPact now has a tested Arc Testnet runtime target, a read-only network readiness check, browser-wallet deployment tooling that generates deployment evidence, and network-aware USDC labels. Contracts have not yet been deployed to Arc Testnet. The local Anvil loop remains the default until the testnet deployment and lifecycle smoke gate are complete.
+`InvoiceRegistry` and `SealedBidAuction` are live on Arc Testnet. A real-chain smoke run created, approved, and publicly referenced an invoice, then created an auction, committed and revealed a bid, finalized its winner, and withdrew its bond credit. Every recorded receipt succeeded. The public evidence is committed under `deployments/`; the local Anvil loop remains the default development environment.
 
 The browser connects to an injected EVM wallet, signs a one-time API authentication challenge, publishes its encryption public key, and uses the Viem chain-record adapter to register, read, and approve invoice records through the Solidity `InvoiceRegistry`. The API verifies the wallet signature, rejects challenge replay, and protects encrypted-envelope access with a short-lived bearer session. Encrypted envelopes, public encryption keys, one-time challenges, hashed session tokens, and the public contract-event projection persist in a local SQLite database across API restarts; raw bearer tokens are never stored.
 
@@ -30,7 +30,7 @@ The Phase 6 payment seam keeps simulations and real public-chain transfers diffe
 
 Phase 7 provides the responsive QuietPact website, explicit problem and purpose positioning, connected invoice and auction consoles, actionable wallet errors, persistent maturity and privacy notices, and keyboard-accessible workflow rails. Playwright runs the real encrypted-invoice and sealed-bid lifecycles against a disposable Anvil chain and API. Desktop and mobile tests cover product copy, wallet rejection, wrong-chain recovery, expired sessions, and automated WCAG A/AA checks.
 
-Local prototype · unaudited · no real funds.
+Arc testnet prototype · unaudited · testnet tokens only.
 
 ## Development
 
@@ -83,7 +83,7 @@ Run the read-only readiness check:
 pnpm arc:check
 ```
 
-When a dedicated testnet wallet has faucet USDC, deploy through a browser wallet without placing a private key in an environment variable:
+Deploy through a browser wallet or encrypted Foundry keystore without placing a private key in an environment variable:
 
 ```bash
 pnpm arc:deploy
@@ -94,6 +94,19 @@ The command refuses any RPC that is not chain `5042002`, builds with the pinned 
 ```bash
 pnpm arc:dev
 ```
+
+Current contracts:
+
+- [`InvoiceRegistry` at `0xCe084c9358FBC5200415012885c2F0F0906d400C`](https://testnet.arcscan.app/address/0xCe084c9358FBC5200415012885c2F0F0906d400C)
+- [`SealedBidAuction` at `0x0C83623d0abFca5e7ad6E6179bB45A3E70C6C9DA`](https://testnet.arcscan.app/address/0x0C83623d0abFca5e7ad6E6179bB45A3E70C6C9DA)
+
+Re-run the resumable lifecycle smoke gate with an encrypted Foundry account:
+
+```bash
+pnpm arc:smoke
+```
+
+The hidden password prompt uses a private temporary file that is removed automatically. Successful public evidence is written to `deployments/arc-testnet-smoke.json`; any interrupted private checkpoint remains under ignored `.quietpact-data/`.
 
 Testnet USDC has no real-world value. Use a dedicated testnet wallet. Do not use a wallet that holds real assets. The current Arc documentation explicitly marks Arc Privacy as unavailable roadmap functionality, so all QuietPact contract calls, transfers, wallet addresses, timing, and revealed bids remain public.
 

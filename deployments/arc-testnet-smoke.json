@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "checkedAt": "2026-07-23T06:15:16.859Z",
+  "deployer": "0x99066fBc97557490fA794F750630bb41733D1004",
+  "contracts": {
+    "InvoiceRegistry": "0xCe084c9358FBC5200415012885c2F0F0906d400C",
+    "SealedBidAuction": "0x0C83623d0abFca5e7ad6E6179bB45A3E70C6C9DA"
+  },
+  "invoice": {
+    "id": "0x3083d19289d5abdfe4fb57202fd4a8daced799b9637478e27bcd9b836e876b86",
+    "createTransaction": "0x2ae2a47a07856ce9f0f6be62335f558bee7561e5922f53d119c58de66baead17",
+    "approveTransaction": "0xaab72d61c5da72a80aa79f12aa95d4688368063b1a42128c1f68d897ffc54cae",
+    "publicPaymentTransaction": "0x5aee2a21ce6e51117ca734a1a785b36510dac2bf367fe1f0f376d3df0eb2af68",
+    "referenceTransaction": "0x3900d1ae75a46131ba204ee53c1880b2756067fff2b9cbb790ab7adcbbae0f7d",
+    "finalView": "0x99066fBc97557490fA794F750630bb41733D1004\n0x000000000000000000000000000000000000bEEF\n0x0792f9132845b04f101e00a99d43d11bbaf66c05cd9e2964fadf037b602c3717\n0xcd75ae11d989d9b5627df9c589336ef1c163f53d8f7bdab8aa0097addb900fdd\n0x0000000000000000000000000000000000000000000000000000000000000000\n0x5aee2a21ce6e51117ca734a1a785b36510dac2bf367fe1f0f376d3df0eb2af68\n1784786659 [1.784e9]\n3",
+    "plaintextCanaryUsed": false,
+    "classification": "PUBLIC_ONCHAIN"
+  },
+  "auction": {
+    "id": "0x30fdd7c2b6708de771dc8061fb2ec17ad088f2e6902c72af61c905f485c6cabc",
+    "createTransaction": "0x462829e8486eae6d973649b927a4730507625e0f78d0d289f1d39dd609d20d48",
+    "commitTransaction": "0x1f912a16d889f5ae98831bf22befdd7b61db2f837c557c412073736d144ae7fc",
+    "revealTransaction": "0xc9289696d9129c7c2ddacf246a00e2eb50c77d25f22cdfa51b8f416a84a777d8",
+    "finalizeTransaction": "0xfe1d9e0914f2b15d8d71946d18d6acab95aafb76749161ed43855e0203d85868",
+    "withdrawalTransaction": "0xb3b58bc440a8eadfbcb7b0e9c61d70f63274c06fcb9af0ca1e92c05b9f124da3",
+    "finalView": "0x99066fBc97557490fA794F750630bb41733D1004\n1784787241 [1.784e9]\n1784787271 [1.784e9]\n1784787301 [1.784e9]\n10000000000000000 [1e16]\n1\n0x99066fBc97557490fA794F750630bb41733D1004\n75\ntrue",
+    "finalBidView": "0x305df67b97ccf3a3d8e6550662ef1bb7d9321b1c16b5cacfe6c0ece0568bc336\n75\ntrue",
+    "creditBeforeWithdrawal": "10000000000000000 [1e16]",
+    "creditAfterWithdrawal": "0",
+    "bidVisibility": "PUBLIC_AFTER_REVEAL"
+  }
+}
